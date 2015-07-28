@@ -1,13 +1,21 @@
+# Description:
+#   Notifies users of relevant GitHub repo updates
+#
+# Commands:
+#   hubot alias <username> - Registers your github username.
+#   hubot alias[?] - Lists your registered github username.
+#   hubot unalias - Unregisters your github username with.
+#   hubot watch <user/repository> - Watches a github repository for updates.
+#   hubot repos[?] - Lists the github repositories you're watching.
+#   hubot unwatch <user/repository> - Stops watching a github repository.
+#   hubot watch <user/repository#number> - Watches a github issue for updates.
+#   hubot issues[?] - Lists the github issues you're watching.
+#   hubot unwatch <user/repository#number> - Stops watching a github issue.
+#
+# Author:
+#   jaredru
 
 EventEmitter = require("events").EventEmitter
-
-Array.from ?= (arrayLike) ->
-    array = []
-
-    arrayLike.forEach (item) ->
-        array.push(item)
-
-    array
 
 
 
@@ -15,7 +23,7 @@ class Issue extends EventEmitter
     # Static
 
     @id: (repo, info) ->
-        "#{repo.full_name}##{info.number}"
+        "#{repo.full_name.toLowerCase()}##{info.number}"
 
     # Instance
 
@@ -24,17 +32,20 @@ class Issue extends EventEmitter
         @_info = info
 
         @_participants = new Set
-        @_participants.add repo.owner.login
+        @_addParticipant repo.owner.login
 
     handle: (action, data) ->
         sender = data.sender.login
-        @_participants.add sender
+        @_addParticipant sender
 
         @_handle action, sender, data
 
     #
     # Private
     #
+
+    _addParticipant: (login) ->
+        @_participants.add login.toLowerCase()
 
     _handle: (action, sender, data) ->
         switch action
@@ -45,31 +56,51 @@ class Issue extends EventEmitter
             when "commented"  then @_commented  sender, data.comment
             when "closed"     then @_closed     sender
 
-    _header: ->
-        "[<#{@_repo.html_url}|#{@_repo.full_name}>] <#{@_info.html_url}|##{@_info.number}: #{@_info.title}>\n"
+    # TODO: having this pretext method blows
+    _pretext: ->
+        "[<#{@_repo.html_url}|#{@_repo.full_name}>] Issue <#{@_info.html_url}|##{@_info.number}: #{@_info.title}>"
 
+    _notify: (type, sender, details) ->
+        details.pretext  = @_pretext()
+        details.fallback = "#{details.pretext}\n> #{details.title}"
+
+        if details.text
+            details.fallback += "\n> #{details.text}"
+
+        @emit type, @_participants, sender, details
+
+    _updated: (sender, details) ->
+        @_notify "updated", sender, details
+
+    # TODO: map the github names to chat names if possible?
     _opened: (sender) ->
-        @emit "opened",  @_participants, sender, @_header() + "> *Opened by #{sender}*\n> #{@_info.body}"
-
-    _updated: (sender, text) ->
-        @emit "updated", @_participants, sender, @_header() + text
+        @_notify "opened", sender,
+            title: "Opened by #{sender}",
+            text:  @_info.body
 
     _reopened: (sender) ->
-        @_updated sender, "> *Reopened by #{sender}*"
+        @_updated sender,
+            title: "Reopened by #{sender}"
 
     _assigned: (sender, assignee) ->
-        @_participants.add assignee
-        @_updated sender, "> *Assigned to #{assignee} by #{sender}*"
+        @_addParticipant assignee
+        @_updated sender,
+            title: "Assigned to #{assignee} by #{sender}"
 
     _unassigned: (sender, assignee) ->
-        @_participants.add assignee
-        @_updated sender, "> *Assigned from #{assignee} by #{sender}*"
+        @_addParticipant assignee
+        @_updated sender,
+            title: "Unassigned from #{assignee} by #{sender}"
 
     _commented: (sender, comment) ->
-        @_updated sender, "> *Comment by #{sender}*\n> #{comment.body}"
+        @_updated sender,
+            title:      "Comment by #{sender}",
+            title_link: comment.html_url
+            text:       comment.body
 
     _closed: (sender) ->
-        @_updated sender, "> *Closed by #{sender}*"
+        @_updated sender,
+            title: "Closed by #{sender}"
 
 
 
@@ -83,12 +114,17 @@ class PullRequest extends Issue
             when "synchronize" then @_synchronized sender
             else super action, sender, data
 
+    _pretext: ->
+        "[<#{@_repo.html_url}|#{@_repo.full_name}>] Pull Request <#{@_info.html_url}|##{@_info.number}: #{@_info.title}>"
+
     _synchronized: (sender) ->
-        @_updated sender, "> *Commits added by #{sender}*"
+        @_updated sender,
+            title: "Commits added by #{sender}"
 
     _closed: (sender) ->
         closeType = if @_info.merged then "Merged" else "Closed"
-        @_updated sender, "> *#{closeType} by #{sender}*"
+        @_updated sender,
+            title: "#{closeType} by #{sender}"
 
 
 
@@ -99,20 +135,29 @@ class Github
         @_issues = {}
 
         @_watchers =
-            repos:  new Set
-            issues: new Set
+            repos:  {}
+            issues: {}
 
     # Logins
 
     setLoginForUser: (user, login) ->
-        if login?
-            @_logins[login] = user.id
+        # this method can set or delete a login
+        if login
+            id = login.toLowerCase()
 
-            @_infoForUser user
-            user._github.login = login
-        else
-            delete @_logins[login]
-            delete user._github?.login
+            # remove the login from the previous owner
+            if userId = @_logins[id]
+                previous = @_robot.brain.userForId userId
+                delete previous._github?.login
+
+            # set up the new login mapping
+            @_logins[id] = user.id
+            info = @_infoForUser user
+            info.login = login
+
+        else if id = user._github?.login?.toLowerCase()
+            delete @_logins[id]
+            delete user._github.login
 
     loginForUser: (user) ->
         user._github?.login
@@ -123,7 +168,7 @@ class Github
         @_addWatcher "repos", user, repo
 
     reposForUser: (user) ->
-        user._github?.repos
+        (name for id, name of user._github?.repos)
 
     removeWatcherForRepo: (user, repo) ->
         @_removeWatcher "repos", user, repo
@@ -134,7 +179,7 @@ class Github
         @_addWatcher "issues", user, issue
 
     issuesForUser: (user) ->
-        user._github?.issues
+        (name for id, name of user._github?.issues)
 
     removeWatcherForIssue: (user, issue) ->
         @_removeWatcher "repos", user, repo
@@ -167,26 +212,25 @@ class Github
 
     _infoForUser: (user) ->
         user._github ?=
-            repos:  new Set
-            issues: new Set
+            repos:  {}
+            issues: {}
 
     # Watchers
 
-    _addWatcher: (key, user, id) ->
-        watchers = @_watchers[key][id]
+    _addWatcher: (key, user, name) ->
+        id = name.toLowerCase()
 
-        unless watchers
-            watchers = new Set
-            @_watchers[key][id] = watchers
-
+        watchers = @_watchers[key][id] ?= new Set
         watchers.add user.id
 
-        @_infoForUser user
-        user._github[key].add id
+        info = @_infoForUser user
+        info[key][id] = name
 
-    _removeWatcher: (key, user, id) ->
+    _removeWatcher: (key, user, name) ->
+        id = name.toLowerCase()
+
         @_watchers[key][id]?.delete user.id
-        user._github?[key].delete id
+        delete user._github?[key][id]
 
     # Issues
 
@@ -211,46 +255,60 @@ class Github
             @_issues[id] = issue
 
             # hook a couple of important events
-            issue.on "opened", (participants, sender, text) =>
+            repoId = repo.full_name.toLowerCase()
+
+            issue.on "opened", (participants, sender, details) =>
                 watchers = new Set @_watchers.issues[id]
 
-                @_watchers.repos[repo.full_name]?.forEach (watcher) ->
+                @_watchers.repos[repoId]?.forEach (watcher) ->
                     watchers.add watcher
 
-                @_notify watchers, participants, sender, text
+                @_notify watchers, participants, sender, details
 
-            issue.on "updated", (participants, sender, text) =>
+            issue.on "updated", (participants, sender, details) =>
                 watchers = new Set @_watchers.issues[id]
-                @_notify watchers, participants, sender, text
+                @_notify watchers, participants, sender, details
 
         # let the issue handle the action
         issue.handle action, data
 
-    _notify: (watchers, participants, sender, text) ->
+    _notify: (watchers, participants, sender, details) ->
         # add the participants to the watchers
         participants.forEach (login) =>
-            userId = @_logins[login]
-
-            if userId
+            if userId = @_logins[login]
                 watchers.add userId
 
         # notify all the watchers, except the sender
-        watchers.forEach (userId) =>
-            user = @_robot.brain.userForId userId
+        senderId = sender.toLowerCase()
 
-            unless sender is user._github.login
-                @_robot.send user, text
+        watchers.forEach (userId) =>
+            unless @_logins[senderId] is userId
+                user = @_robot.brain.userForId userId
+
+                # TODO: handle generic sends if we're not connected to slack
+                #  @_robot.send user, details.fallback
+
+                @_robot.emit "slack-attachment",
+                    channel:     user.name,
+                    attachments: [details]
             else
-                @_robot.logger.info "Skipping #{sender}: #{text}"
+                @_robot.logger.info "Skipping #{sender}: #{details.fallback}"
 
 
 
 module.exports = (robot) ->
     github = new Github robot
 
-    # Logins
+    robot.on "slack-attachment", (data) ->
+        console.log data
+    jared = robot.brain.userForName "jared"
+    if jared then github.setLoginForUser jared, "jaredru"
 
-    robot.respond /alias ([a-zA-Z-]+)\s*$/i, (res) ->
+    #
+    # Logins
+    #
+
+    robot.respond /alias\s+([\w-]+)\s*$/i, (res) ->
         user  = res.message.user
         alias = res.match[1]
 
@@ -261,7 +319,7 @@ module.exports = (robot) ->
         user  = res.message.user
         alias = github.loginForUser user
 
-        if alias?
+        if alias
             res.reply "Your GitHub alias is set to #{alias}."
         else
             res.reply "You haven't set a GitHub alias."
@@ -270,7 +328,7 @@ module.exports = (robot) ->
         user  = res.message.user
         alias = github.loginForUser user
 
-        if alias?
+        if alias
             github.setLoginForUser user
             res.reply "Your GitHub alias has been removed."
         else
@@ -278,7 +336,7 @@ module.exports = (robot) ->
 
     # Repos
 
-    robot.respond /watch ([a-zA-Z-]+\/[a-zA-Z-]+)\s*$/i, (res) ->
+    robot.respond /watch ([\w-]+\/[\w-]+)\s*$/i, (res) ->
         user = res.message.user
         repo = res.match[1]
 
@@ -288,21 +346,18 @@ module.exports = (robot) ->
     robot.respond /repos?\??\s*$/i, (res) ->
         _listReposForUser res
 
-    robot.respond /unwatch ([a-zA-Z-]+\/[a-zA-Z-]+)\s*$/i, (res) ->
+    robot.respond /unwatch ([\w-]+\/[\w-]+)\s*$/i, (res) ->
         user = res.message.user
         repo = res.match[1]
 
-        repos = github.reposForUser user
-
-        if repos?.has repo
-            github.removeWatcherForRepo user, repo
+        if github.removeWatcherForRepo user, repo
             res.reply "You are no longer watching the GitHub repo #{repo}."
         else
             res.reply "You are not watching the GitHub repo #{repo}."
 
     # Issues/PRs
 
-    robot.respond /watch ([a-zA-Z-]+\/[a-zA-Z-]+#\d+)\s*$/i, (res) ->
+    robot.respond /watch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) ->
         user  = res.message.user
         issue = res.match[1]
 
@@ -312,14 +367,11 @@ module.exports = (robot) ->
     robot.respond /issues?\??\s*$/i, (res) ->
         _listIssuesForUser res
 
-    robot.respond /unwatch ([a-zA-Z-]+\/[a-zA-Z-]+#\d+)\s*$/i, (res) ->
+    robot.respond /unwatch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) ->
         user  = res.message.user
         issue = res.match[1]
 
-        issues = github.issuesForUser user
-
-        if issues?.has issue
-            github.removeWatcherForIssue user, issue
+        if github.removeWatcherForIssue user, issue
             res.reply "You are no longer watching the GitHub issue #{issue}."
         else
             res.reply "You are not watching the GitHub issue #{issue}."
@@ -346,14 +398,16 @@ module.exports = (robot) ->
         _listItemsForUser "issues", issues, res
 
     _listItemsForUser = (type, items, res) ->
-        if items?.size
-            text  = "You are watching the GitHub #{type}:\n"
-            text += Array.from(items)
-                .sort()
-                .map (item) ->
-                    "  - #{item}"
-                .join "\n"
-            res.reply text
+        if items.length
+            res.reply """
+                You are watching the GitHub #{type}
+                #{items
+                    .sort()
+                    .map (item) ->
+                        "  - #{item}"
+                    .join "\n"
+                }
+            """
         else
             res.reply "You are not watching any GitHub #{type}."
 
