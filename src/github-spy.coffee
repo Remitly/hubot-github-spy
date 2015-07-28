@@ -229,7 +229,10 @@ class Github
     _notify: (watchers, participants, sender, text) ->
         # add the participants to the watchers
         participants.forEach (login) =>
-            watchers.add @_logins[login]
+            userId = @_logins[login]
+
+            if userId
+                watchers.add userId
 
         # notify all the watchers, except the sender
         watchers.forEach (userId) =>
