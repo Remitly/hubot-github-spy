@@ -16,6 +16,17 @@
 #   jaredru
 
 EventEmitter = require("events").EventEmitter
+Redis        = require("ioredis")
+
+SECONDS_PER_WEEK = 60 * 60 * 24 * 7
+
+formatNewLines = (obj) ->
+    for key, value of obj
+        if typeof value is "string" || value instanceof String
+            obj[key] = value.replace /\r\n/g, "\n"
+        else
+            formatNewLines value
+    return obj
 
 
 
@@ -30,11 +41,11 @@ class Issue extends EventEmitter
     constructor: (repo, info) ->
         @_repo = repo
         @_info = info
-
-        @_participants = new Set
         @_addParticipant repo.owner.login
 
-    handle: (action, data) ->
+    handle: (action, info, data) ->
+        @_info = info
+
         sender = data.sender.login
         @_addParticipant sender
 
@@ -45,7 +56,7 @@ class Issue extends EventEmitter
     #
 
     _addParticipant: (login) ->
-        @_participants.add login.toLowerCase()
+        @emit "participant", login.toLowerCase()
 
     _handle: (action, sender, data) ->
         switch action
@@ -67,7 +78,7 @@ class Issue extends EventEmitter
         if details.text
             details.fallback += "\n> #{details.text}"
 
-        @emit type, @_participants, sender, details
+        @emit type, sender, details
 
     _updated: (sender, details) ->
         @_notify "updated", sender, details
@@ -131,12 +142,7 @@ class PullRequest extends Issue
 class Github
     constructor: (robot) ->
         @_robot  = robot
-        @_logins = {}
         @_issues = {}
-
-        @_watchers =
-            repos:  {}
-            issues: {}
 
     # Logins
 
@@ -145,44 +151,48 @@ class Github
         if login
             id = login.toLowerCase()
 
-            # remove the login from the previous owner
-            if userId = @_logins[id]
-                previous = @_robot.brain.userForId userId
-                delete previous._github?.login
+            # get the previous owner
+            @_robot.db.hget "logins", id, (err, userId) =>
+                # remove the login from the previous owner
+                # and set up the mapping
+                @_robot.db.multi()
+                    .hdel("users", userId)
+                    .hset("logins", id, user.id)
+                    .hset("users", user.id, login)
+                    .exec()
+        else
+            @_robot.db.hget "users", user.id, (err, login) =>
+                if id = login.toLowerCase()
+                    @_robot.db.multi()
+                        .hdel("logins", id)
+                        .hdel("users", user.id)
+                        .exec()
 
-            # set up the new login mapping
-            @_logins[id] = user.id
-            info = @_infoForUser user
-            info.login = login
-
-        else if id = user._github?.login?.toLowerCase()
-            delete @_logins[id]
-            delete user._github.login
-
-    loginForUser: (user) ->
-        user._github?.login
+    loginForUser: (user, callback) ->
+        @_robot.db.hget "users", user.id, (err, login) ->
+            callback login
 
     # Repos
 
     addWatcherForRepo: (user, repo) ->
-        @_addWatcher "repos", user, repo
+        @_addWatcher "repo", user, repo
 
-    reposForUser: (user) ->
-        (name for id, name of user._github?.repos)
+    reposForUser: (user, callback) ->
+        @_getWatched "repo", user, callback
 
     removeWatcherForRepo: (user, repo) ->
-        @_removeWatcher "repos", user, repo
+        @_removeWatcher "repo", user, repo
 
     # Issues
 
     addWatcherForIssue: (user, issue) ->
-        @_addWatcher "issues", user, issue
+        @_addWatcher "issue", user, issue
 
-    issuesForUser: (user) ->
-        (name for id, name of user._github?.issues)
+    issuesForUser: (user, callback) ->
+        @_getWatched "issue", user, callback
 
     removeWatcherForIssue: (user, issue) ->
-        @_removeWatcher "repos", user, repo
+        @_removeWatcher "issue", user, issue
 
     # Events
 
@@ -210,27 +220,31 @@ class Github
     # Private
     #
 
-    _infoForUser: (user) ->
-        user._github ?=
-            repos:  {}
-            issues: {}
-
     # Watchers
 
-    _addWatcher: (key, user, name) ->
-        id = name.toLowerCase()
+    _addWatcher: (type, user, name) ->
+        typeKey = "#{type}:#{name.toLowerCase()}"
+        userKey = "user:#{user.id}:#{type}"
 
-        watchers = @_watchers[key][id] ?= new Set
-        watchers.add user.id
+        @_robot.db.multi()
+            .sadd(typeKey, user.id)
+            .sadd(userKey, name)
+            .exec()
 
-        info = @_infoForUser user
-        info[key][id] = name
+    _getWatched: (type, user, callback) ->
+        userKey = "user:#{user.id}:#{type}"
 
-    _removeWatcher: (key, user, name) ->
-        id = name.toLowerCase()
+        @_robot.db.smembers userKey, (err, watched) ->
+            callback watched
 
-        @_watchers[key][id]?.delete user.id
-        delete user._github?[key][id]
+    _removeWatcher: (type, user, name) ->
+        typeKey = "#{type}:#{name.toLowerCase()}"
+        userKey = "user:#{user.id}:#{type}"
+
+        @_robot.db.multi()
+            .sdel(typeKey, user.id)
+            .sdel(userKey, name)
+            .exec()
 
     # Issues
 
@@ -245,7 +259,9 @@ class Github
         # get some of the basic issue info
         repo = data.repository
         info = data.pull_request or data.issue
-        id   = type.id repo, info
+
+        id              = type.id repo, info
+        participantsKey = "participants:#{id}"
 
         # get or create the issue as required
         issue = @_issues[id]
@@ -255,54 +271,81 @@ class Github
             @_issues[id] = issue
 
             # hook a couple of important events
-            repoId = repo.full_name.toLowerCase()
+            repoId   = repo.full_name.toLowerCase()
+            repoKey  = "repo:#{repoId}"
+            issueKey = "issue:#{id}"
 
-            issue.on "opened", (participants, sender, details) =>
-                watchers = new Set @_watchers.issues[id]
+            issue.on "participant", (login) =>
+                @_robot.db.pipeline()
+                    .sadd(participantsKey, login)
+                    .expire(participantsKey, SECONDS_PER_WEEK)
+                    .exec()
 
-                @_watchers.repos[repoId]?.forEach (watcher) ->
-                    watchers.add watcher
+            issue.on "opened", (sender, details) =>
+                @_robot.db.multi()
+                    .sunion(repoKey, issueKey)
+                    .smembers(participantsKey)
+                    .exec (err, results) =>
+                        @_notify results[0][1], results[1][1], sender, details
 
-                @_notify watchers, participants, sender, details
-
-            issue.on "updated", (participants, sender, details) =>
-                watchers = new Set @_watchers.issues[id]
-                @_notify watchers, participants, sender, details
+            issue.on "updated", (sender, details) =>
+                @_robot.db.multi()
+                    .smembers(issueKey)
+                    .smembers(participantsKey)
+                    .exec (err, results) =>
+                        @_notify results[0][1], results[1][1], sender, details
 
         # let the issue handle the action
-        issue.handle action, data
+        issue.handle action, info, data
 
     _notify: (watchers, participants, sender, details) ->
-        # add the participants to the watchers
-        participants.forEach (login) =>
-            if userId = @_logins[login]
-                watchers.add userId
+        # make sure our messages will be formatted correctly
+        details = formatNewLines details
+        details.mrkdwn_in = ["pretext", "text", "fields"]
 
-        # notify all the watchers, except the sender
+        # add the participants to the watchers
+        watchers = new Set watchers
         senderId = sender.toLowerCase()
 
-        watchers.forEach (userId) =>
-            unless @_logins[senderId] is userId
-                user = @_robot.brain.userForId userId
+        @_robot.db.multi()
+            .hmget("logins", participants)
+            .hget("logins", senderId)
+            .exec (err, results) =>
+                for userId in results[0][1]
+                    if userId
+                        watchers.add userId
 
-                # TODO: handle generic sends if we're not connected to slack
-                #  @_robot.send user, details.fallback
+                # notify all the watchers, except the sender
+                watchers.forEach (userId) =>
+                    unless userId is results[1][1]
+                        user = @_robot.brain.userForId userId
 
-                @_robot.emit "slack-attachment",
-                    channel:     user.name,
-                    attachments: [details]
-            else
-                @_robot.logger.info "Skipping #{sender}: #{details.fallback}"
+                        # TODO: handle generic sends if we're not connected to slack
+                        #  @_robot.send user, details.fallback
+
+                        @_robot.emit "slack-attachment",
+                            channel:     user.name,
+                            attachments: [details]
+                    else
+                        @_robot.logger.info "Skipping #{sender}: #{details.fallback}"
 
 
 
 module.exports = (robot) ->
-    github = new Github robot
+    redisUrl = process.env.HUBOT_GITHUB_SPY_REDIS_URL
+    robot.db = new Redis redisUrl
+    github   = new Github robot
 
     robot.on "slack-attachment", (data) ->
-        console.log data
-    jared = robot.brain.userForName "jared"
-    if jared then github.setLoginForUser jared, "jaredru"
+        console.log "slack-sttachment:", JSON.stringify data
+
+    robot.respond /test-attach\s+(.*)$/i, (res) ->
+        data = formatNewLines JSON.parse res.match[1]
+        data.mrkdwn_in = ["pretext", "text", "fields"]
+
+        robot.emit "slack-attachment",
+            channel:     res.message.user.name
+            attachments: data
 
     #
     # Logins
@@ -316,23 +359,23 @@ module.exports = (robot) ->
         res.reply "Your GitHub alias is set to #{alias}."
 
     robot.respond /alias\??$/i, (res) ->
-        user  = res.message.user
-        alias = github.loginForUser user
+        user = res.message.user
 
-        if alias
-            res.reply "Your GitHub alias is set to #{alias}."
-        else
-            res.reply "You haven't set a GitHub alias."
+        github.loginForUser user, (alias) ->
+            if alias
+                res.reply "Your GitHub alias is set to #{alias}."
+            else
+                res.reply "You haven't set a GitHub alias."
 
     robot.respond /unalias$/i, (res) ->
-        user  = res.message.user
-        alias = github.loginForUser user
+        user = res.message.user
 
-        if alias
-            github.setLoginForUser user
-            res.reply "Your GitHub alias has been removed."
-        else
-            res.reply "You haven't set a GitHub alias."
+        github.loginForUser user, (alias) ->
+            if alias
+                github.setLoginForUser user
+                res.reply "Your GitHub alias has been removed."
+            else
+                res.reply "You haven't set a GitHub alias."
 
     # Repos
 
@@ -390,17 +433,17 @@ module.exports = (robot) ->
     #
 
     _listReposForUser = (res) ->
-        repos = github.reposForUser res.message.user
-        _listItemsForUser "repos", repos, res
+        github.reposForUser res.message.user, (repos) ->
+            _listItemsForUser "repos", repos, res
 
     _listIssuesForUser = (res) ->
-        issues = github.issuesForUser res.message.user
-        _listItemsForUser "issues", issues, res
+        github.issuesForUser res.message.user, (issues) ->
+            _listItemsForUser "issues", issues, res
 
     _listItemsForUser = (type, items, res) ->
         if items.length
             res.reply """
-                You are watching the GitHub #{type}
+                You are watching the GitHub #{type}:
                 #{items
                     .sort()
                     .map (item) ->

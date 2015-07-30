@@ -20,6 +20,10 @@
 
   "main": "index.coffee",
 
+  "dependencies": {
+    "ioredis": "^1.7.2"
+  },
+
   "keywords": [
     "hubot",
     "github"
