@@ -140,36 +140,40 @@ class PullRequest extends Issue
 
 
 class Github
-    constructor: (robot) ->
+    constructor: (robot, redis) ->
         @_robot  = robot
+        @_redis  = redis
         @_issues = {}
 
     # Logins
 
     setLoginForUser: (user, login) ->
-        # this method can set or delete a login
-        if login
-            id = login.toLowerCase()
+        unless @_redis.setLoginForUser
+            @_redis.defineCommand "setLoginForUser",
+                numberOfKeys: 0,
+                lua: """
+                    local userId = ARGV[1]
+                    local login  = ARGV[2]
 
-            # get the previous owner
-            @_robot.db.hget "logins", id, (err, userId) =>
-                # remove the login from the previous owner
-                # and set up the mapping
-                @_robot.db.multi()
-                    .hdel("users", userId)
-                    .hset("logins", id, user.id)
-                    .hset("users", user.id, login)
-                    .exec()
-        else
-            @_robot.db.hget "users", user.id, (err, login) =>
-                if id = login.toLowerCase()
-                    @_robot.db.multi()
-                        .hdel("logins", id)
-                        .hdel("users", user.id)
-                        .exec()
+                    if login ~= "" then
+                        local loginId = login:lower()
+                        local oldId   = redis.call("hget", "logins", loginId)
+
+                        redis.call("hdel", "users",  oldId)
+                        redis.call("hset", "logins", loginId, userId)
+                        redis.call("hset", "users",  userId,  login)
+                    else
+                        local login   = redis.call("hget", "users", userId)
+                        local loginId = login:lower()
+
+                        redis.call("hdel", "users",  userId)
+                        redis.call("hdel", "logins", loginId)
+                    end
+                """
+        @_redis.setLoginForUser user.id, login
 
     loginForUser: (user, callback) ->
-        @_robot.db.hget "users", user.id, (err, login) ->
+        @_redis.hget "users", user.id, (err, login) ->
             callback login
 
     # Repos
@@ -226,7 +230,7 @@ class Github
         typeKey = "#{type}:#{name.toLowerCase()}"
         userKey = "user:#{user.id}:#{type}"
 
-        @_robot.db.multi()
+        @_redis.multi()
             .sadd(typeKey, user.id)
             .sadd(userKey, name)
             .exec()
@@ -234,14 +238,14 @@ class Github
     _getWatched: (type, user, callback) ->
         userKey = "user:#{user.id}:#{type}"
 
-        @_robot.db.smembers userKey, (err, watched) ->
+        @_redis.smembers userKey, (err, watched) ->
             callback watched
 
     _removeWatcher: (type, user, name) ->
         typeKey = "#{type}:#{name.toLowerCase()}"
         userKey = "user:#{user.id}:#{type}"
 
-        @_robot.db.multi()
+        @_redis.multi()
             .sdel(typeKey, user.id)
             .sdel(userKey, name)
             .exec()
@@ -276,20 +280,20 @@ class Github
             issueKey = "issue:#{id}"
 
             issue.on "participant", (login) =>
-                @_robot.db.pipeline()
+                @_redis.pipeline()
                     .sadd(participantsKey, login)
                     .expire(participantsKey, SECONDS_PER_WEEK)
                     .exec()
 
             issue.on "opened", (sender, details) =>
-                @_robot.db.multi()
+                @_redis.multi()
                     .sunion(repoKey, issueKey)
                     .smembers(participantsKey)
                     .exec (err, results) =>
                         @_notify results[0][1], results[1][1], sender, details
 
             issue.on "updated", (sender, details) =>
-                @_robot.db.multi()
+                @_redis.multi()
                     .smembers(issueKey)
                     .smembers(participantsKey)
                     .exec (err, results) =>
@@ -307,7 +311,7 @@ class Github
         watchers = new Set watchers
         senderId = sender.toLowerCase()
 
-        @_robot.db.multi()
+        @_redis.multi()
             .hmget("logins", participants)
             .hget("logins", senderId)
             .exec (err, results) =>
@@ -333,8 +337,9 @@ class Github
 
 module.exports = (robot) ->
     redisUrl = process.env.HUBOT_GITHUB_SPY_REDIS_URL
-    robot.db = new Redis redisUrl
-    github   = new Github robot
+
+    redis  = new Redis redisUrl
+    github = new Github robot, redis
 
     robot.on "slack-attachment", (data) ->
         console.log "slack-sttachment:", JSON.stringify data
