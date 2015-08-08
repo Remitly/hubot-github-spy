@@ -15,8 +15,7 @@
 # Author:
 #   jaredru
 
-EventEmitter = require("events").EventEmitter
-Redis        = require("ioredis")
+Redis = require("ioredis")
 
 SECONDS_PER_WEEK = 60 * 60 * 24 * 7
 
@@ -28,134 +27,151 @@ formatNewLines = (obj) ->
             formatNewLines(value)
     return obj
 
+#
+# Github Events
+#
 
+class IssueEvent
 
-class Issue extends EventEmitter
     # Static
 
-    @id: (repo, info) ->
-        "#{repo.full_name.toLowerCase()}##{info.number}"
+    @create: (action, data) ->
+        # pull requests are just a specialized type of issue
+        type = \
+            if data.pull_request or data.issue?.pull_request
+                PullRequestEvent
+            else
+                IssueEvent
+
+        # get some of the basic issue info
+        repo = data.repository
+        info = data.pull_request or data.issue
+
+        # create and return the event type
+        new type(repo, info, action, data)
 
     # Instance
 
-    constructor: (repo, info) ->
-        @_repo = repo
-        @_info = info
-        @_addParticipant(repo.owner.login)
+    constructor: (@repo, @info, @action, @data) ->
+        @repoId = @repo.full_name.toLowerCase()
+        @id     = "#{@repoId}##{@info.number}"
 
-    handle: (action, info, data) ->
-        @_info = info
+        @sender       = @data.sender.login
+        @participants = [ @repo.owner.login, @sender ]
 
-        sender = data.sender.login
-        @_addParticipant(sender)
-
-        @_handle(action, sender, data)
+        @_buildDetails()
 
     #
     # Private
     #
 
-    _addParticipant: (login) ->
-        @emit("participant", login.toLowerCase())
+    _buildDetails: ->
+        handler = switch @action
+            when "opened"     then @_opened
+            when "reopened"   then @_reopened
+            when "assigned"   then @_assigned
+            when "unassigned" then @_unassigned
+            when "commented"  then @_commented
+            when "closed"     then @_closed
+        handler?.call(@)
 
-    _handle: (action, sender, data) ->
-        switch action
-            when "opened"     then @_opened(    sender)
-            when "reopened"   then @_reopened(  sender)
-            when "assigned"   then @_assigned(  sender, data.assignee.login)
-            when "unassigned" then @_unassigned(sender)
-            when "commented"  then @_commented( sender, data.comment)
-            when "closed"     then @_closed(    sender)
-
-    # TODO: having this pretext method blows
     _pretext: ->
-        "[<#{@_repo.html_url}|#{@_repo.full_name}>] Issue <#{@_info.html_url}|##{@_info.number}: #{@_info.title}>"
+        "[<#{@repo.html_url}|#{@repo.full_name}>] Issue <#{@info.html_url}|##{@info.number}: #{@info.title}>"
 
-    _notify: (type, sender, details) ->
+    _setDetails: (details) ->
         details.pretext  = @_pretext()
         details.fallback = "#{details.pretext}\n> #{details.title}"
 
         if details.text
             details.fallback += "\n> #{details.text}"
 
-        @emit(type, sender, details)
-
-    _updated: (sender, details) ->
-        @_notify("updated", sender, details)
+        @details = details
 
     # TODO: map the github names to chat names if possible?
-    _opened: (sender) ->
-        @_notify("opened", sender,
-            title: "Opened by #{sender}",
-            text:  @_info.body
+    _opened: ->
+        @_setDetails(
+            title: "Opened by #{@sender}",
+            text:  @info.body
         )
 
-    _reopened: (sender) ->
-        @_updated(sender,
-            title: "Reopened by #{sender}"
+    _reopened: ->
+        @_setDetails(
+            title: "Reopened by #{@sender}"
         )
 
-    _assigned: (sender, assignee) ->
-        @_addParticipant(assignee)
-        @_updated(sender,
-            title: "Assigned to #{assignee} by #{sender}"
+    _assigned: ->
+        @assignee = @data.assignee.login
+        @participants.push(@assignee)
+
+        @_setDetails(
+            title: "Assigned to #{@assignee} by #{@sender}"
         )
 
-    _unassigned: (sender, assignee) ->
-        @_addParticipant(assignee)
-        @_updated(sender,
-            title: "Unassigned from #{assignee} by #{sender}"
+    _unassigned: ->
+        @assignee = @data.assignee.login
+        @participants.push(@assignee)
+
+        @_setDetails(
+            title: "Unassigned from #{@assignee} by #{@sender}"
         )
 
-    _commented: (sender, comment) ->
-        @_updated(sender,
-            title:      "Comment by #{sender}",
-            title_link: comment.html_url
-            text:       comment.body
+    _commented: ->
+        @comment = @data.comment
+
+        @_setDetails(
+            title:      "Comment by #{@sender}",
+            title_link: @comment.html_url
+            text:       @comment.body
         )
 
-    _closed: (sender) ->
-        @_updated(sender,
-            title: "Closed by #{sender}"
+    _closed: ->
+        @_setDetails(
+            title: "Closed by #{@sender}"
         )
 
-
-
-class PullRequest extends Issue
+class PullRequestEvent extends IssueEvent
     #
     # Private
     #
 
-    _handle: (action, sender, data) ->
-        switch action
-            when "synchronize" then @_synchronized(sender)
-            else super(action, sender, data)
+    _buildDetails: ->
+        handler = switch @action
+            when "synchronize" then @_synchronized
+
+        if handler
+            handler.call(@)
+        else
+            super
 
     _pretext: ->
-        "[<#{@_repo.html_url}|#{@_repo.full_name}>] Pull Request <#{@_info.html_url}|##{@_info.number}: #{@_info.title}>"
+        "[<#{@repo.html_url}|#{@repo.full_name}>] Pull Request <#{@info.html_url}|##{@info.number}: #{@info.title}>"
 
-    _synchronized: (sender) ->
-        @_updated(sender,
-            title: "Commits added by #{sender}"
+    _synchronized: ->
+        @_setDetails(
+            title: "Commits added by #{@sender}"
         )
 
-    _closed: (sender) ->
-        closeType = if @_info.merged then "Merged" else "Closed"
-        @_updated(sender,
-            title: "#{closeType} by #{sender}"
+    _closed: ->
+        closeAction = if @info.merged then "Merged" else "Closed"
+
+        @_setDetails(
+            title: "#{closeAction} by #{@sender}"
         )
 
-
+#
+# Github
+#
 
 class Github
     constructor: (robot, redis) ->
-        @_robot  = robot
-        @_redis  = redis
-        @_issues = {}
+        @_robot = robot
+        @_redis = redis
 
     # Logins
 
     setLoginForUser: (user, login) ->
+        # we drop down into lua here, as it's the only way to atomically get a
+        # value and use it to act on another value
         unless @_redis.setLoginForUser
             @_redis.defineCommand("setLoginForUser",
                 numberOfKeys: 0,
@@ -270,73 +286,64 @@ class Github
     # Issues
 
     _handleIssue: (action, data) ->
-        # pull requests are just a specialized type of issue
-        type = \
-            if data.pull_request or data.issue?.pull_request
-                PullRequest
-            else
-                Issue
+        # create the event itself and start building our redis command
+        event   = IssueEvent.create(action, data)
+        command = @_redis.pipeline()
 
-        # get some of the basic issue info
-        repo = data.repository
-        info = data.pull_request or data.issue
+        # first we'll add all the participants
+        participantsKey = "participants:#{event.id}"
 
-        id              = type.id(repo, info)
-        participantsKey = "participants:#{id}"
+        command = command
+            .sadd(participantsKey, event.participants)
+            # TODO: we expire participants after a week, so stale issues don't
+            # stick around forever.  what we don't do, currently, is re-sync all
+            # participants if we get an event for an expired issue.
+            .expire(participantsKey, SECONDS_PER_WEEK)
 
-        # get or create the issue as required
-        issue = @_issues[id]
+        # if we don't have any details, that's all we're doing
+        unless event.details
+            command.exec()
+            return
 
-        unless issue
-            issue = new type(repo, info)
-            @_issues[id] = issue
+        # if we do have details, we need to get the right set of watchers
+        watchersKeys = ["issue:#{event.id}"]
 
-            # hook a couple of important events
-            repoId   = repo.full_name.toLowerCase()
-            repoKey  = "repo:#{repoId}"
-            issueKey = "issue:#{id}"
+        # most of the time, we only care about the issue watchers.  in the
+        # "opened" case, however, we also won't to notify the repo watchers.
+        if action is "opened"
+            watchersKeys.push("repo:#{event.repoId}")
 
-            issue.on("participant", (login) =>
-                @_redis.pipeline()
-                    .sadd(participantsKey, login)
-                    .expire(participantsKey, SECONDS_PER_WEEK)
-                    .exec()
+        # finally we'll get all the participants and execute
+        command
+            .sunion(watchersKeys)
+            .smembers(participantsKey)
+            .exec((err, results) =>
+                # TODO: remove this once things stabilize
+                if err
+                    console.log "err", err
+                    return
+
+                @_notify(results[2][1], results[3][1], event)
             )
 
-            issue.on("opened", (sender, details) =>
-                @_redis.multi()
-                    .sunion(repoKey, issueKey)
-                    .smembers(participantsKey)
-                    .exec((err, results) =>
-                        @_notify(results[0][1], results[1][1], sender, details)
-                    )
-            )
-
-            issue.on("updated", (sender, details) =>
-                @_redis.multi()
-                    .smembers(issueKey)
-                    .smembers(participantsKey)
-                    .exec((err, results) =>
-                        @_notify(results[0][1], results[1][1], sender, details)
-                    )
-            )
-
-        # let the issue handle the action
-        issue.handle(action, info, data)
-
-    _notify: (watchers, participants, sender, details) ->
+    _notify: (watchers, participants, event) ->
         # make sure our messages will be formatted correctly
-        details = formatNewLines(details)
+        details = formatNewLines(event.details)
         details.mrkdwn_in = ["pretext", "text", "fields"]
 
         # add the participants to the watchers
         watchers = new Set(watchers)
-        senderId = sender.toLowerCase()
+        senderId = event.sender.toLowerCase()
 
         @_redis.multi()
             .hmget("logins", participants)
             .hget("logins", senderId)
             .exec((err, results) =>
+                # TODO: remove this once things stabilize
+                if err
+                    console.log "err", err
+                    return
+
                 for userId in results[0][1]
                     if userId
                         watchers.add(userId)
@@ -354,17 +361,23 @@ class Github
                             attachments: [details]
                         )
                     else
-                        @_robot.logger.info("Skipping #{sender}: #{details.fallback}")
+                        @_robot.logger.info("Skipping #{event.sender}: #{details.fallback}")
                 )
             )
 
+#
+# Hubot
+#
 
+REDIS_URL = process.env.HUBOT_GITHUB_SPY_REDIS_URL
 
 module.exports = (robot) ->
-    redisUrl = process.env.HUBOT_GITHUB_SPY_REDIS_URL
-
-    redis  = new Redis(redisUrl)
+    redis  = new Redis(REDIS_URL)
     github = new Github(robot, redis)
+
+    #
+    # Debug
+    #
 
     robot.on("slack-attachment", (data) ->
         console.log("slack-sttachment:", JSON.stringify(data))
