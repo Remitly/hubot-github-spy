@@ -279,8 +279,8 @@ class Github
         userKey = @_userKey(type, user)
 
         @_redis.multi()
-            .sdel(typeKey, user.id)
-            .sdel(userKey, name)
+            .srem(typeKey, user.id)
+            .srem(userKey, name)
             .exec()
 
     # Issues
@@ -380,7 +380,7 @@ module.exports = (robot) ->
     #
 
     robot.on("slack-attachment", (data) ->
-        console.log("slack-sttachment:", JSON.stringify(data))
+        console.log("slack-attachment:", JSON.stringify(data))
     )
 
     robot.respond(/test-attach\s+(.*)$/i, (res) ->
@@ -463,7 +463,7 @@ module.exports = (robot) ->
     )
 
     robot.respond(/issues?\??\s*$/i, (res) ->
-        _listIssuesForUs(res)
+        _listIssuesForUser(res)
     )
 
     robot.respond(/unwatch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) ->
