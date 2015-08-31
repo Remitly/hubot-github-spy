@@ -57,7 +57,7 @@ class IssueEvent
         @id     = "#{@repoId}##{@info.number}"
 
         @sender       = @data.sender.login
-        @participants = [ @repo.owner.login, @sender ]
+        @participants = [ @repo.owner.login, @info.user.login, @sender ]
 
         @_buildDetails()
 
