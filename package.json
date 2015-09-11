@@ -1,6 +1,6 @@
 {
   "name": "hubot-github-spy",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A Hubot plugin for notifying users on relevant GitHub repo updates",
   "homepage": "https://github.com/jaredru/hubot-github-spy#readme",
 
