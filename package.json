@@ -1,31 +1,34 @@
 {
-  "name":        "hubot-github-spy",
-  "version":     "0.1.1",
-  "description": "A Hubot plugin for notifying users of relevant GitHub repo updates",
+    "name":        "hubot-github-spy",
+    "version":     "0.2.0",
+    "description": "A Hubot plugin for notifying users of relevant GitHub repo updates",
 
-  "homepage": "https://github.com/jaredru/hubot-github-spy",
-  "author": {
-    "name": "Jared Russell",
-    "url":  "http://github.com/jaredru"
-  },
+    "homepage": "https://github.com/jaredru/hubot-github-spy",
+    "author": {
+        "name": "Jared Russell",
+        "url":  "http://github.com/jaredru"
+    },
 
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url":  "https://github.com/jaredru/hubot-github-spy.git"
-  },
-  "bugs": {
-    "url": "https://github.com/jaredru/hubot-github-spy/issues"
-  },
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url":  "https://github.com/jaredru/hubot-github-spy.git"
+    },
+    "bugs": {
+        "url": "https://github.com/jaredru/hubot-github-spy/issues"
+    },
 
-  "main": "index.coffee",
+    "main": "index.js",
 
-  "dependencies": {
-    "ioredis": "~1.15.1"
-  },
+    "dependencies": {
+        "ioredis": "~1.15.1"
+    },
+    "engines": {
+        "node": "5.8.x"
+    },
 
-  "keywords": [
-    "hubot",
-    "github"
-  ]
+    "keywords": [
+        "hubot",
+        "github"
+    ]
 }
