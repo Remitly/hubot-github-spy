@@ -32,7 +32,7 @@ module.exports = function(robot) {
     //
 
     robot.on("slack-attachment", (data) => {
-        robot.logger.info("slack-attachment:", JSON.stringify(data));
+        robot.logger.info("slack-attachment:", JSON.stringify(data, null, "  "));
     });
 
     robot.respond(/test-attach\s+(.*)$/i, (res) => {
