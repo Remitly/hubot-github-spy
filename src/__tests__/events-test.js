@@ -66,7 +66,7 @@ describe("events", () => {
 
             expect(event.id).toEqual(`${event.repoId}#${info.number}`);
             expect(event.sender).toEqual("SENDER");
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
         });
 
         it("ignores unknown actions", () => {
@@ -82,7 +82,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Opened by SENDER`, info.body);
         });
@@ -92,7 +92,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Reopened by SENDER`);
         });
@@ -106,7 +106,7 @@ describe("events", () => {
 
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER", "ASSIGNEE"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
 
             verifyDetails(event, pretext, `Assigned to ASSIGNEE by SENDER`);
         });
@@ -120,7 +120,7 @@ describe("events", () => {
 
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER", "ASSIGNEE"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
 
             verifyDetails(event, pretext, `Unassigned from ASSIGNEE by SENDER`);
         });
@@ -135,7 +135,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toEqual(data.comment);
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Comment by SENDER`, data.comment.body);
         });
@@ -145,7 +145,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Closed by SENDER`);
         });
@@ -181,7 +181,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Commits added by SENDER`);
         });
@@ -192,7 +192,7 @@ describe("events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
-            expect(event.participants).toEqual(new Set("OWNER", "USER", "SENDER"));
+            expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
 
             verifyDetails(event, pretext, `Merged by SENDER`);
         });

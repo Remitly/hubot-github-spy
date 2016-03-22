@@ -15,7 +15,7 @@ class IssueEvent {
 
         this.id           = `${this.repoId}#${this.info.number}`;
         this.sender       = this.data.sender.login;
-        this.participants = new Set(this.repo.owner.login, this.info.user.login, this.sender);
+        this.participants = [...new Set([this.repo.owner.login, this.info.user.login, this.sender])];
 
         this._buildDetails();
     }
@@ -78,7 +78,10 @@ class IssueEvent {
 
     _assigned() {
         this.assignee = this.data.assignee.login;
-        this.participants.add(this.assignee);
+
+        if (this.participants.indexOf(this.assignee) === -1) {
+            this.participants.push(this.assignee);
+        }
 
         this._setDetails({
             title: `Assigned to ${this.assignee} by ${this.sender}`
@@ -87,7 +90,10 @@ class IssueEvent {
 
     _unassigned() {
         this.assignee = this.data.assignee.login;
-        this.participants.add(this.assignee);
+
+        if (this.participants.indexOf(this.assignee) === -1) {
+            this.participants.push(this.assignee);
+        }
 
         this._setDetails({
             title: `Unassigned from ${this.assignee} by ${this.sender}`

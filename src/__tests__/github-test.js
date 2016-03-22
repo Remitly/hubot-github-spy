@@ -168,7 +168,7 @@ describe("github", () => {
                 repoId,
                 sender: senderId,
                 action,
-                participants: new Set("FOO_USER", "BAR_USER"),
+                participants: ["FOO_USER", "BAR_USER"],
             };
 
             events = require("../events");
