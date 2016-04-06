@@ -246,7 +246,7 @@ describe("github", () => {
             const fetchCb = redis.exec.mock.calls.pop()[0];
             fetchCb(null, [[], [], [null, watchers], [null, participants]]);
 
-            expect(redis.hmget).toBeCalledWith("logins", participants);
+            expect(redis.hmget).toBeCalledWith("logins", participants.map(p => p.toLowerCase()));
             expect(redis.hget).toBeCalledWith("logins", senderId.toLowerCase());
             expect(redis.exec).toBeCalledWith(jasmine.any(Function));
 

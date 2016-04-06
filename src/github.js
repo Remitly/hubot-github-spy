@@ -225,7 +225,7 @@ class Github {
 
         this._redis
             .multi()
-            .hmget("logins", participants)
+            .hmget("logins", participants.map(login => login.toLowerCase()))
             .hget("logins", senderId)
             .exec((err, results) => {
                 // TODO: remove this once things stabilize
