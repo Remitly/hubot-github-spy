@@ -178,7 +178,7 @@ class Github {
         // first we'll add all the participants
         const command = this._redis
             .pipeline()
-            .sadd(participantsKey, event.participants)
+            .sadd(participantsKey, event.participants, event.mentions)
             // TODO: we expire participants after a week, so stale issues don't
             // stick around forever.  what we don't do, currently, is re-sync all
             // participants if we get an event for an expired issue.
@@ -261,4 +261,3 @@ class Github {
 }
 
 module.exports = Github;
-

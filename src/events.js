@@ -16,6 +16,7 @@ class IssueEvent {
         this.id           = `${this.repoId}#${this.info.number}`;
         this.sender       = this.data.sender.login;
         this.participants = [...new Set([this.repo.owner.login, this.info.user.login, this.sender])];
+        this.mentions     = [];
 
         this._buildDetails();
     }
@@ -28,6 +29,7 @@ class IssueEvent {
         switch (this.action) {
         case "opened":
             this._opened();
+            this._findMentions(this.info.title, this.info.body);
             break;
         case "reopened":
             this._reopened();
@@ -40,11 +42,31 @@ class IssueEvent {
             break;
         case "commented":
             this._commented();
+            this._findMentions(this.comment.body);
             break;
         case "closed":
             this._closed();
             break;
         }
+    }
+
+    _findMentions() {
+        const texts = arguments;
+        const mentions = new Set();
+        const re = /@([\w-]+)/g;
+
+        for (let text of texts) {
+            let match;
+            while (match = re.exec(text)) {
+                const login = match[1];
+
+                if (!this.participants.includes(login)) {
+                    mentions.add(login);
+                }
+            }
+        }
+
+        this.mentions = [...mentions];
     }
 
     _pretext() {
@@ -165,4 +187,3 @@ module.exports = {
         return new type(repo, info, action, data);
     }
 };
-

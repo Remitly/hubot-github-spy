@@ -169,6 +169,7 @@ describe("github", () => {
                 sender: senderId,
                 action,
                 participants: ["FOO_USER", "BAR_USER"],
+                mentions: ["MENTIONED_USER"],
             };
 
             events = require("../events");
@@ -201,7 +202,7 @@ describe("github", () => {
             const github = create();
 
             github.handle("issue", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants);
+            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.smembers).not.toBeCalled();
         });
@@ -211,7 +212,7 @@ describe("github", () => {
             data.details = {};
 
             github.handle("issue", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants);
+            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey]);
             expect(redis.smembers).toBeCalledWith(participantsKey);
@@ -225,7 +226,7 @@ describe("github", () => {
             data.action  = "opened";
 
             github.handle("issue", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants);
+            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey, repoKey]);
             expect(redis.smembers).toBeCalledWith(participantsKey);
@@ -268,4 +269,3 @@ describe("github", () => {
         });
     });
 });
-

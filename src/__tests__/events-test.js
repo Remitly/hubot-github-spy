@@ -10,8 +10,8 @@ describe("events", () => {
     beforeEach(() => {
         info = {
             number: "37",
-            title: "baz",
-            body: "+1",
+            title: "baz @TITLE_MENTION",
+            body: "+1 @BODY_MENTION1 heyo @BODY_MENTION2 wut @USER",
             user: {
                 login: "USER"
             },
@@ -67,6 +67,7 @@ describe("events", () => {
             expect(event.id).toEqual(`${event.repoId}#${info.number}`);
             expect(event.sender).toEqual("SENDER");
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual([]);
         });
 
         it("ignores unknown actions", () => {
@@ -83,6 +84,7 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual(["TITLE_MENTION", "BODY_MENTION1", "BODY_MENTION2"]);
 
             verifyDetails(event, pretext, `Opened by SENDER`, info.body);
         });
@@ -93,6 +95,7 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Reopened by SENDER`);
         });
@@ -107,6 +110,7 @@ describe("events", () => {
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Assigned to ASSIGNEE by SENDER`);
         });
@@ -121,13 +125,14 @@ describe("events", () => {
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Unassigned from ASSIGNEE by SENDER`);
         });
 
         it("handles 'commented'", () => {
             data.comment = {
-                body: "+1!!!",
+                body: "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
                 html_url: "http://comment"
             };
 
@@ -136,6 +141,7 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toEqual(data.comment);
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual(["COMMENT_MENTION1", "COMMENT_MENTION2"]);
 
             verifyDetails(event, pretext, `Comment by SENDER`, data.comment.body);
         });
@@ -146,6 +152,7 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Closed by SENDER`);
         });
@@ -160,11 +167,11 @@ describe("events", () => {
             delete data.issue;
         });
 
-        defineTests("[<http://repo|FOO/BAR>] Issue <http://info|#37: baz>");
+        defineTests("[<http://repo|FOO/BAR>] Issue <http://info|#37: baz @TITLE_MENTION>");
     });
 
     describe("pull requests", () => {
-        const pretext = "[<http://repo|FOO/BAR>] Pull Request <http://info|#37: baz>";
+        const pretext = "[<http://repo|FOO/BAR>] Pull Request <http://info|#37: baz @TITLE_MENTION>";
 
         beforeEach(() => {
             data.pull_request = info;
@@ -182,6 +189,7 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Commits added by SENDER`);
         });
@@ -193,9 +201,9 @@ describe("events", () => {
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
+            expect(event.mentions).toEqual([]);
 
             verifyDetails(event, pretext, `Merged by SENDER`);
         });
     });
 });
-
