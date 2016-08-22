@@ -149,11 +149,14 @@ describe("github", () => {
     });
 
     describe("events", () => {
-        const action    = "FOO!";
-        const commented = "commented";
-        const eventId   = "FOO_ID";
-        const repoId    = "REPO_ID";
-        const senderId  = "SENDER_ID";
+        const action         = "FOO!";
+        const commented      = "commented";
+        const push           = "push";
+        const commit_comment = "commit_comment";
+
+        const eventId  = "FOO_ID";
+        const repoId   = "REPO_ID";
+        const senderId = "SENDER_ID";
 
         const participantsKey = `participants:${eventId}`;
         const issueKey        = `issue:${eventId}`;
@@ -170,6 +173,18 @@ describe("github", () => {
                 action,
                 participants: ["FOO_USER", "BAR_USER"],
                 mentions: ["MENTIONED_USER"],
+                commits: [
+                    {
+                        id: `${repoId}/1234567890`,
+                        author: 'COMMITTER1',
+                        title: 'commit 1',
+                    },
+                    {
+                        id: `${repoId}/2345678901`,
+                        author: 'COMMITTER2',
+                        title: 'commit 2',
+                    },
+                ]
             };
 
             events = require("../events");
@@ -184,6 +199,12 @@ describe("github", () => {
         it("creates the right event", () => {
             const github = create();
             const events = require("../events");
+
+            github.handle("push", data);
+            expect(events.create).lastCalledWith(push, data);
+
+            github.handle("commit_comment", data);
+            expect(events.create).lastCalledWith(commit_comment, data);
 
             github.handle("issue", data);
             expect(events.create).lastCalledWith(action, data);
@@ -231,6 +252,22 @@ describe("github", () => {
             expect(redis.sunion).toBeCalledWith([issueKey, repoKey]);
             expect(redis.smembers).toBeCalledWith(participantsKey);
             expect(redis.exec).toBeCalledWith(jasmine.any(Function));
+        });
+
+        it("sets title for push", () => {
+            const github = create();
+            github.handle("push", data);
+            console.dir(redis.sadd.mock.calls[0]);
+
+            expect(redis.sadd).toBeCalledWith(`participants:${data.commits[0].id}`, data.commits[0].author);
+            expect(redis.expire).toBeCalledWith(`participants:${data.commits[0].id}`, jasmine.any(Number));
+            expect(redis.set).toBeCalledWith(`title:${data.commits[0].id}`, data.commits[0].title, 'EX', jasmine.any(Number));
+
+            expect(redis.sadd).toBeCalledWith(`participants:${data.commits[1].id}`, data.commits[1].author);
+            expect(redis.expire).toBeCalledWith(`participants:${data.commits[1].id}`, jasmine.any(Number));
+            expect(redis.set).toBeCalledWith(`title:${data.commits[1].id}`, data.commits[1].title, 'EX', jasmine.any(Number));
+
+            expect(redis.exec).toBeCalled();
         });
 
         it("notifies participants", () => {

@@ -1,9 +1,12 @@
 
 "use strict";
 
-jest.unmock("../events");
+jest.unmock("../index");
+jest.unmock("../base");
+jest.unmock("../issue");
+jest.unmock("../pull-request");
 
-describe("events", () => {
+describe("issue/pr events", () => {
     let info;
     let data;
 
@@ -39,10 +42,10 @@ describe("events", () => {
     });
 
     function create(action, data) {
-        return require("../events").create(action, data);
+        return require("../index").create(action, data);
     }
 
-    function verifyDetails(event, pretext, title, text) {
+    function verifyDetails(event, pretext, title, text, titleLink) {
         let fallback = `${pretext}\n> ${title}`;
 
         if (text) {
@@ -52,6 +55,12 @@ describe("events", () => {
         expect(event.details.pretext).toEqual(pretext);
         expect(event.details.title).toEqual(title);
         expect(event.details.fallback).toEqual(fallback);
+
+        if (titleLink) {
+            expect(event.details.title_link).toBe(titleLink);
+        } else {
+            expect(event.details.title_link).toBeUndefined();
+        }
     }
 
     function defineTests(pretext) {
@@ -143,7 +152,7 @@ describe("events", () => {
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual(["COMMENT_MENTION1", "COMMENT_MENTION2"]);
 
-            verifyDetails(event, pretext, `Comment by SENDER`, data.comment.body);
+            verifyDetails(event, pretext, `Comment by SENDER`, data.comment.body, 'http://comment');
         });
 
         it("handles 'closed'", () => {

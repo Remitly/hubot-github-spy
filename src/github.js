@@ -6,7 +6,8 @@ const Events = require("./events");
 // Helpers
 //
 
-const SECONDS_PER_WEEK = 60 * 60 * 24 * 7;
+const ONE_DAY  = 60 * 60 * 24;
+const ONE_WEEK = ONE_DAY * 7;
 
 function formatNewLines(obj) {
     for (const key in obj) {
@@ -23,6 +24,8 @@ function formatNewLines(obj) {
 //
 // Github
 //
+
+const DEFAULT_EXPIRATION = ONE_WEEK * 4;
 
 class Github {
     constructor(robot, redis) {
@@ -99,13 +102,13 @@ class Github {
 
     handle(event, data) {
         switch (event) {
-        // // commits
-        // case "push":
-        //     this._handleCommit(data.action, data);
-        //     break;
-        // case "commit_comment":
-        //     this._handleCommitComment("commented", data);
-        //     break;
+        // commits
+        case "push":
+            this._handlePush(event, data);
+            break;
+        case "commit_comment":
+            this._handleCommitComment(event, data);
+            break;
 
         // issues
         case "issue":
@@ -168,21 +171,76 @@ class Github {
             .exec();
     }
 
+    // Commits
+
+    _handlePush(action, data) {
+        // create the event itself
+        const event = Events.create(action, data);
+
+        // watch the participants (read: authors) and store the title
+        // for every commit
+        const command = this._redis.pipeline();
+
+        for (let commit of event.commits) {
+            const participantsKey = `participants:${commit.id}`;
+            const titleKey        = `title:${commit.id}`;
+
+            command
+                .sadd(participantsKey, commit.author)
+                .expire(participantsKey, DEFAULT_EXPIRATION)
+                .set(titleKey, commit.title, 'EX', DEFAULT_EXPIRATION);
+        }
+
+        command.exec();
+    }
+
+    _handleCommitComment(action, data) {
+        // create the event itself
+        const event    = Events.create(action, data);
+        const titleKey = `title:${event.id}`;
+
+        // first we'll grab the title
+        this._redis.multi()
+            .get(titleKey)
+            .expire(titleKey, DEFAULT_EXPIRATION)
+            .exec((err, results) => {
+                const title = results[0][1];
+                if (!title) return;
+
+                // re-build the data with the title in it
+                data = Object.assign({}, data, {
+                    comment: Object.assign({}, data.comment, {
+                        title: title,
+                    }),
+                });
+
+                // re-create the event and process it
+                const event = Events.create(action, data);
+                this._processEvent(action, event);
+            });
+    }
+
     // Issues
 
     _handleIssue(action, data) {
-        // create the event itself
-        const event           = Events.create(action, data);
+        // create the event itself and process it
+        const event = Events.create(action, data);
+        this._processEvent(action, event);
+    }
+
+    // Event Processing
+
+    _processEvent(action, event) {
+        // first we'll add all the participants
         const participantsKey = `participants:${event.id}`;
 
-        // first we'll add all the participants
         const command = this._redis
             .pipeline()
             .sadd(participantsKey, event.participants, event.mentions)
-            // TODO: we expire participants after a week, so stale issues don't
+            // TODO: we expire participants after four weeks, so stale issues don't
             // stick around forever.  what we don't do, currently, is re-sync all
             // participants if we get an event for an expired issue.
-            .expire(participantsKey, SECONDS_PER_WEEK);
+            .expire(participantsKey, DEFAULT_EXPIRATION);
 
         // if we don't have any details, that's all we're doing
         if (!event.details) {
@@ -194,7 +252,7 @@ class Github {
         const watchersKeys = [`issue:${event.id}`];
 
         // most of the time, we only care about the issue watchers.  in the
-        // "opened" case, however, we also won't to notify the repo watchers.
+        // "opened" case, however, we also want to notify the repo watchers.
         if (action === "opened") {
             watchersKeys.push(`repo:${event.repoId}`);
         }

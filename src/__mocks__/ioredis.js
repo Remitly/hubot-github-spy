@@ -7,6 +7,9 @@ Redis.prototype = {
         this[name] = jest.fn();
     }),
 
+    set: jest.fn().mockReturnThis(),
+    get: jest.fn().mockReturnThis(),
+
     hget:  jest.fn().mockReturnThis(),
     hmget: jest.fn().mockReturnThis(),
 
@@ -24,4 +27,3 @@ Redis.prototype = {
 };
 
 module.exports = Redis;
-
