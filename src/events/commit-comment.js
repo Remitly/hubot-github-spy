@@ -25,8 +25,18 @@ class CommitCommentEvent extends BaseEvent {
         });
     }
 
+    _title() {
+        let title = this.info.title;
+
+        if (!title) {
+            return 'No title';
+        }
+
+        return title.split('\n', 1)[0];
+    }
+
     _pretext() {
-        return `[<${this.repo.html_url}|${this.repo.full_name}>] Commit <${this.repo.html_url}/commit/${this.info.commit_id}|${this.info.commit_id.substr(0, 7)}: ${this.info.title.split('\n').shift()}>`;
+        return `[<${this.repo.html_url}|${this.repo.full_name}>] Commit <${this.repo.html_url}/commit/${this.info.commit_id}|${this.info.commit_id.substr(0, 7)}: ${this._title()}>`;
     }
 }
 
