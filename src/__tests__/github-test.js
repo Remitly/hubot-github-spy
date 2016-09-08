@@ -206,7 +206,7 @@ describe("github", () => {
             github.handle("commit_comment", data);
             expect(events.create).lastCalledWith(commit_comment, data);
 
-            github.handle("issue", data);
+            github.handle("issues", data);
             expect(events.create).lastCalledWith(action, data);
 
             github.handle("issue_comment", data);
@@ -222,7 +222,7 @@ describe("github", () => {
         it("adds the participants without details", () => {
             const github = create();
 
-            github.handle("issue", data);
+            github.handle("issues", data);
             expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.smembers).not.toBeCalled();
@@ -232,7 +232,7 @@ describe("github", () => {
             const github = create();
             data.details = {};
 
-            github.handle("issue", data);
+            github.handle("issues", data);
             expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey]);
@@ -246,7 +246,7 @@ describe("github", () => {
             data.details = {};
             data.action  = "opened";
 
-            github.handle("issue", data);
+            github.handle("issues", data);
             expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey, repoKey]);
@@ -276,7 +276,7 @@ describe("github", () => {
             data.details = {
                 foo: "BAR"
             };
-            github.handle("issue", data);
+            github.handle("issues", data);
 
             const watchers     = ["ID_BAZ", "ID_FOO", "ID_BAR"];
             const participants = ["ABC", "XYZ", senderId];

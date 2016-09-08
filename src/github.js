@@ -111,7 +111,7 @@ class Github {
             break;
 
         // issues
-        case "issue":
+        case "issues":
             this._handleIssue(data.action, data);
             break;
         case "issue_comment":
