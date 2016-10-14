@@ -1,7 +1,7 @@
 
-const BaseEvent = require('./base');
+const BaseEvent = require("./base");
 
-class IssueEvent extends BaseEvent {
+module.exports = class IssueEvent extends BaseEvent {
     //
     // Private
     //
@@ -28,6 +28,8 @@ class IssueEvent extends BaseEvent {
         case "closed":
             this._closed();
             break;
+
+        default: break;
         }
     }
 
@@ -39,13 +41,13 @@ class IssueEvent extends BaseEvent {
     _opened() {
         this._setDetails({
             title: `Opened by ${this.sender}`,
-            text:  this.info.body
+            text:  this.info.body,
         });
     }
 
     _reopened() {
         this._setDetails({
-            title: `Reopened by ${this.sender}`
+            title: `Reopened by ${this.sender}`,
         });
     }
 
@@ -57,7 +59,7 @@ class IssueEvent extends BaseEvent {
         }
 
         this._setDetails({
-            title: `Assigned to ${this.assignee} by ${this.sender}`
+            title: `Assigned to ${this.assignee} by ${this.sender}`,
         });
     }
 
@@ -69,7 +71,7 @@ class IssueEvent extends BaseEvent {
         }
 
         this._setDetails({
-            title: `Unassigned from ${this.assignee} by ${this.sender}`
+            title: `Unassigned from ${this.assignee} by ${this.sender}`,
         });
     }
 
@@ -79,15 +81,13 @@ class IssueEvent extends BaseEvent {
         this._setDetails({
             title:      `Comment by ${this.sender}`,
             title_link: this.comment.html_url,
-            text:       this.comment.body
+            text:       this.comment.body,
         });
     }
 
     _closed() {
         this._setDetails({
-            title: `Closed by ${this.sender}`
+            title: `Closed by ${this.sender}`,
         });
     }
-}
-
-module.exports = IssueEvent;
+};

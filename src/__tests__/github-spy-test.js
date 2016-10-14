@@ -1,39 +1,49 @@
+/* eslint-disable
+    global-require,
+    no-param-reassign,
+    no-shadow,
+*/
 
-"use strict";
+jest.mock("ioredis");
+jest.mock("../github");
 
-jest.unmock("../github-spy");
+const Redis  = require("ioredis");
+const Github = require("../github");
+const initGithubSpy = require("../github-spy");
 
 describe("hubot github spy", () => {
     let robot;
     let github;
 
     beforeEach(() => {
+        jest.clearAllMocks();
+
         robot = {
             on:      jest.fn(),
             respond: jest.fn(),
 
             logger: {
                 info:  jest.fn(),
-                error: jest.fn()
+                error: jest.fn(),
             },
 
             router: {
-                post: jest.fn()
-            }
+                post: jest.fn(),
+            },
         };
 
-        require("../github-spy")(robot);
-        github = require("../github").mock.instances[0];
+        initGithubSpy(robot);
+        github = Github.mock.instances[0];
 
         robot.respond
             .mock
             .calls
-            .forEach(call => {
-                const parts = call[0].toString().split("/")
+            .forEach((call) => {
+                const parts = call[0].toString().split("/");
                 parts.shift();
                 const modifiers = parts.pop();
 
-                call[0] = new RegExp("^" + parts.join("/"), modifiers);
+                call[0] = new RegExp(`^${parts.join("/")}`, modifiers);
             });
     });
 
@@ -46,8 +56,7 @@ describe("hubot github spy", () => {
         process.env.HUBOT_GITHUB_SPY_REDIS_URL = "redis://gitbot:3737";
 
         it("is created", () => {
-            const redis = require("ioredis");
-            expect(redis).toBeCalledWith(process.env.HUBOT_GITHUB_SPY_REDIS_URL);
+            expect(Redis).toBeCalledWith(process.env.HUBOT_GITHUB_SPY_REDIS_URL);
         });
     });
 
@@ -76,8 +85,8 @@ describe("hubot github spy", () => {
 
     const message = {
         user: {
-            id: "fooId"
-        }
+            id: "fooId",
+        },
     };
 
     describe("logins", () => {
@@ -106,12 +115,12 @@ describe("hubot github spy", () => {
 
         it("sets alias", () => {
             const cb    = findCallback("alias foo");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             cb({
                 message,
                 match: [null, alias],
-                reply
+                reply,
             });
 
             expect(github.setLoginForUser).lastCalledWith(message.user, alias);
@@ -134,18 +143,18 @@ describe("hubot github spy", () => {
 
         it("returns alias", () => {
             const cb    = findCallback("alias?");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             cb({
                 message,
-                reply
+                reply,
             });
 
             expect(github.loginForUser).lastCalledWith(message.user, jasmine.any(Function));
             const logincb = github.loginForUser.mock.calls[0][1];
 
             logincb(null);
-            expect(reply).lastCalledWith(`You haven't set a GitHub alias.`);
+            expect(reply).lastCalledWith("You haven't set a GitHub alias.");
 
             logincb(alias);
             expect(reply).lastCalledWith(`Your GitHub alias is set to ${alias}.`);
@@ -166,11 +175,11 @@ describe("hubot github spy", () => {
 
         it("removes alias", () => {
             const cb    = findCallback("unalias");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             cb({
                 message,
-                reply
+                reply,
             });
 
             expect(github.loginForUser).lastCalledWith(message.user, jasmine.any(Function));
@@ -178,11 +187,11 @@ describe("hubot github spy", () => {
 
             logincb(null);
             expect(github.setLoginForUser).not.toBeCalled();
-            expect(reply).lastCalledWith(`You haven't set a GitHub alias.`);
+            expect(reply).lastCalledWith("You haven't set a GitHub alias.");
 
             logincb(alias);
             expect(github.setLoginForUser).lastCalledWith(message.user);
-            expect(reply).lastCalledWith(`Your GitHub alias has been removed.`);
+            expect(reply).lastCalledWith("Your GitHub alias has been removed.");
         });
     });
 
@@ -245,13 +254,13 @@ describe("hubot github spy", () => {
 
         it("sets watch repo", () => {
             const cb    = findCallback("watch foo/bar");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             const repo = "FOO/BAR";
             cb({
                 message,
                 match: [null, repo],
-                reply
+                reply,
             });
 
             verifyWatch("repo", repo, reply);
@@ -272,11 +281,11 @@ describe("hubot github spy", () => {
 
         it("returns watch repos", () => {
             const cb    = findCallback("repos?");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             cb({
                 message,
-                reply
+                reply,
             });
 
             verifyWatching("repo", [], reply);
@@ -308,13 +317,13 @@ describe("hubot github spy", () => {
 
         it("removes watch repo", () => {
             const cb    = findCallback("unwatch foo/bar");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             const repo = "FOO/BAR";
             cb({
                 message,
                 match: [null, repo],
-                reply
+                reply,
             });
 
             verifyUnwatch("repo", repo, reply);
@@ -365,13 +374,13 @@ describe("hubot github spy", () => {
 
         it("sets watch issue", () => {
             const cb    = findCallback("watch foo/bar#37");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             const issue = "FOO/BAR#37";
             cb({
                 message,
                 match: [null, issue],
-                reply
+                reply,
             });
 
             verifyWatch("issue", issue, reply);
@@ -392,11 +401,11 @@ describe("hubot github spy", () => {
 
         it("returns watch issues", () => {
             const cb    = findCallback("issues?");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             cb({
                 message,
-                reply
+                reply,
             });
 
             verifyWatching("issue", [], reply);
@@ -446,13 +455,13 @@ describe("hubot github spy", () => {
 
         it("removes watch issue", () => {
             const cb    = findCallback("unwatch foo/bar#37");
-            const reply = jest.fn()
+            const reply = jest.fn();
 
             const issue = "FOO/BAR#37";
             cb({
                 message,
                 match: [null, issue],
-                reply
+                reply,
             });
 
             verifyUnwatch("issue", issue, reply);
@@ -467,7 +476,7 @@ describe("hubot github spy", () => {
             "x-github-event": event,
         };
         const body = {
-            foo: "BAR"
+            foo: "BAR",
         };
 
         const req = {
@@ -482,7 +491,7 @@ describe("hubot github spy", () => {
 
         beforeEach(() => {
             res = {
-                send: jest.fn()
+                send: jest.fn(),
             };
         });
 
@@ -511,4 +520,3 @@ describe("hubot github spy", () => {
         });
     });
 });
-

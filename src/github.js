@@ -1,5 +1,4 @@
 
-"use strict";
 const Events = require("./events");
 
 //
@@ -10,15 +9,18 @@ const ONE_DAY  = 60 * 60 * 24;
 const ONE_WEEK = ONE_DAY * 7;
 
 function formatNewLines(obj) {
-    for (const key in obj) {
-        const value = obj[key];
+    const ref = obj;
+
+    Object.keys(ref).forEach((key) => {
+        const value = ref[key];
         if (typeof value === "string" || value instanceof String) {
-            obj[key] = value.replace(/\r\n/g, "\n");
+            ref[key] = value.replace(/\r\n/g, "\n");
         } else {
             formatNewLines(value);
         }
-    }
-    return obj;
+    });
+
+    return ref;
 }
 
 //
@@ -27,7 +29,7 @@ function formatNewLines(obj) {
 
 const DEFAULT_EXPIRATION = ONE_WEEK * 4;
 
-class Github {
+module.exports = class Github {
     constructor(robot, redis) {
         this._robot = robot;
         this._redis = redis;
@@ -41,7 +43,7 @@ class Github {
         if (!this._redis.setLoginForUser) {
             this._redis.defineCommand("setLoginForUser", {
                 numberOfKeys: 0,
-                lua: `
+                lua:          `
                     local userId = ARGV[1]
                     local login  = ARGV[2]
 
@@ -59,7 +61,7 @@ class Github {
                         redis.call("hdel", "users",  userId)
                         redis.call("hdel", "logins", loginId)
                     end
-                `
+                `,
             });
         }
 
@@ -125,6 +127,9 @@ class Github {
         case "pull_request_review_comment":
             this._handleIssue("commented", data);
             break;
+
+        default:
+            break;
         }
     }
 
@@ -143,14 +148,14 @@ class Github {
     }
 
     _addWatcher(type, user, name) {
-        name = name.toLowerCase();
-        const typeKey = this._typeKey(type, name);
+        const canonicalName = name.toLowerCase();
+        const typeKey = this._typeKey(type, canonicalName);
         const userKey = this._userKey(type, user);
 
         return this._redis
             .multi()
             .sadd(typeKey, user.id)
-            .sadd(userKey, name)
+            .sadd(userKey, canonicalName)
             .exec();
     }
 
@@ -160,14 +165,14 @@ class Github {
     }
 
     _removeWatcher(type, user, name) {
-        name = name.toLowerCase();
-        const typeKey = this._typeKey(type, name);
+        const canonicalName = name.toLowerCase();
+        const typeKey = this._typeKey(type, canonicalName);
         const userKey = this._userKey(type, user);
 
         return this._redis
             .multi()
             .srem(typeKey, user.id)
-            .srem(userKey, name)
+            .srem(userKey, canonicalName)
             .exec();
     }
 
@@ -181,14 +186,14 @@ class Github {
         // for every commit
         const command = this._redis.pipeline();
 
-        for (let commit of event.commits) {
+        for (const commit of event.commits) {
             const participantsKey = `participants:${commit.id}`;
             const titleKey        = `title:${commit.id}`;
 
             command
                 .sadd(participantsKey, commit.author)
                 .expire(participantsKey, DEFAULT_EXPIRATION)
-                .set(titleKey, commit.title, 'EX', DEFAULT_EXPIRATION);
+                .set(titleKey, commit.title, "EX", DEFAULT_EXPIRATION);
         }
 
         command.exec();
@@ -208,15 +213,15 @@ class Github {
                 if (!title) return;
 
                 // re-build the data with the title in it
-                data = Object.assign({}, data, {
+                const merged = Object.assign({}, data, {
                     comment: Object.assign({}, data.comment, {
-                        title: title,
+                        title,
                     }),
                 });
 
                 // re-create the event and process it
-                const event = Events.create(action, data);
-                this._processEvent(action, event);
+                const updatedEvent = Events.create(action, merged);
+                this._processEvent(action, updatedEvent);
             });
     }
 
@@ -308,7 +313,7 @@ class Github {
 
                         this._robot.emit("slack-attachment", {
                             channel:     user.name,
-                            attachments: [details]
+                            attachments: [details],
                         });
                     } else {
                         this._robot.logger.info(`Skipping ${event.sender}: ${details.fallback}`);
@@ -316,6 +321,4 @@ class Github {
                 });
             });
     }
-}
-
-module.exports = Github;
+};

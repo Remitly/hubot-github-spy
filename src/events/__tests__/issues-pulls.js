@@ -1,10 +1,5 @@
 
-"use strict";
-
-jest.unmock("../index");
-jest.unmock("../base");
-jest.unmock("../issue");
-jest.unmock("../pull-request");
+const Events = require("../index");
 
 describe("issue/pr events", () => {
     let info;
@@ -13,26 +8,26 @@ describe("issue/pr events", () => {
     beforeEach(() => {
         info = {
             number: "37",
-            title: "baz @TITLE_MENTION",
-            body: "+1 @BODY_MENTION1 heyo @BODY_MENTION2 wut @USER",
-            user: {
-                login: "USER"
+            title:  "baz @TITLE_MENTION",
+            body:   "+1 @BODY_MENTION1 heyo @BODY_MENTION2 wut @USER",
+            user:   {
+                login: "USER",
             },
-            html_url: "http://info"
+            html_url: "http://info",
         };
 
         data = {
             repository: {
                 full_name: "FOO/BAR",
-                owner: {
-                    login: "OWNER"
+                owner:     {
+                    login: "OWNER",
                 },
-                html_url: "http://repo"
+                html_url: "http://repo",
             },
 
             sender: {
-                login: "SENDER"
-            }
+                login: "SENDER",
+            },
         };
     });
 
@@ -40,10 +35,6 @@ describe("issue/pr events", () => {
         info = null;
         data = null;
     });
-
-    function create(action, data) {
-        return require("../index").create(action, data);
-    }
 
     function verifyDetails(event, pretext, title, text, titleLink) {
         let fallback = `${pretext}\n> ${title}`;
@@ -65,7 +56,7 @@ describe("issue/pr events", () => {
 
     function defineTests(pretext) {
         it("fills default info for any action", () => {
-            const event = create("FAKE", data);
+            const event = Events.create("FAKE", data);
 
             expect(event.repo).toEqual(data.repository);
             expect(event.info).toEqual(info);
@@ -80,7 +71,7 @@ describe("issue/pr events", () => {
         });
 
         it("ignores unknown actions", () => {
-            const event = create("FAKE", data);
+            const event = Events.create("FAKE", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
@@ -88,82 +79,82 @@ describe("issue/pr events", () => {
         });
 
         it("handles 'opened'", () => {
-            const event = create("opened", data);
+            const event = Events.create("opened", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual(["TITLE_MENTION", "BODY_MENTION1", "BODY_MENTION2"]);
 
-            verifyDetails(event, pretext, `Opened by SENDER`, info.body);
+            verifyDetails(event, pretext, "Opened by SENDER", info.body);
         });
 
         it("handles 'reopened'", () => {
-            const event = create("reopened", data);
+            const event = Events.create("reopened", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Reopened by SENDER`);
+            verifyDetails(event, pretext, "Reopened by SENDER");
         });
 
         it("handles 'assigned'", () => {
             data.assignee = {
-                login: "ASSIGNEE"
+                login: "ASSIGNEE",
             };
 
-            const event = create("assigned", data);
+            const event = Events.create("assigned", data);
 
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Assigned to ASSIGNEE by SENDER`);
+            verifyDetails(event, pretext, "Assigned to ASSIGNEE by SENDER");
         });
 
         it("handles 'unassigned'", () => {
             data.assignee = {
-                login: "ASSIGNEE"
+                login: "ASSIGNEE",
             };
 
-            const event = create("unassigned", data);
+            const event = Events.create("unassigned", data);
 
             expect(event.assignee).toEqual("ASSIGNEE");
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER", "ASSIGNEE"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Unassigned from ASSIGNEE by SENDER`);
+            verifyDetails(event, pretext, "Unassigned from ASSIGNEE by SENDER");
         });
 
         it("handles 'commented'", () => {
             data.comment = {
-                body: "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
-                html_url: "http://comment"
+                body:     "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
+                html_url: "http://comment",
             };
 
-            const event = create("commented", data);
+            const event = Events.create("commented", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toEqual(data.comment);
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual(["COMMENT_MENTION1", "COMMENT_MENTION2"]);
 
-            verifyDetails(event, pretext, `Comment by SENDER`, data.comment.body, 'http://comment');
+            verifyDetails(event, pretext, "Comment by SENDER", data.comment.body, "http://comment");
         });
 
         it("handles 'closed'", () => {
-            const event = create("closed", data);
+            const event = Events.create("closed", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Closed by SENDER`);
+            verifyDetails(event, pretext, "Closed by SENDER");
         });
     }
 
@@ -193,26 +184,26 @@ describe("issue/pr events", () => {
         defineTests(pretext);
 
         it("handles 'synchronize'", () => {
-            const event = create("synchronize", data);
+            const event = Events.create("synchronize", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Commits added by SENDER`);
+            verifyDetails(event, pretext, "Commits added by SENDER");
         });
 
         it("handles 'merged'", () => {
             info.merged = true;
-            const event = create("closed", data);
+            const event = Events.create("closed", data);
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBeUndefined();
             expect(event.participants).toEqual(["OWNER", "USER", "SENDER"]);
             expect(event.mentions).toEqual([]);
 
-            verifyDetails(event, pretext, `Merged by SENDER`);
+            verifyDetails(event, pretext, "Merged by SENDER");
         });
     });
 });

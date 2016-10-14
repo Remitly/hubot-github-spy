@@ -1,7 +1,7 @@
 
-const IssueEvent = require('./issue');
+const IssueEvent = require("./issue");
 
-class PullRequestEvent extends IssueEvent {
+module.exports = class PullRequestEvent extends IssueEvent {
     //
     // Private
     //
@@ -12,7 +12,7 @@ class PullRequestEvent extends IssueEvent {
             this._synchronized();
             break;
         default:
-            super._buildDetails(arguments);
+            super._buildDetails();
             break;
         }
     }
@@ -23,7 +23,7 @@ class PullRequestEvent extends IssueEvent {
 
     _synchronized() {
         this._setDetails({
-            title: `Commits added by ${this.sender}`
+            title: `Commits added by ${this.sender}`,
         });
     }
 
@@ -31,9 +31,7 @@ class PullRequestEvent extends IssueEvent {
         const closeAction = this.info.merged ? "Merged" : "Closed";
 
         this._setDetails({
-            title: `${closeAction} by ${this.sender}`
+            title: `${closeAction} by ${this.sender}`,
         });
     }
-}
-
-module.exports = PullRequestEvent;
+};

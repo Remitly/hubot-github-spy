@@ -1,5 +1,5 @@
 
-class BaseEvent {
+module.exports = class BaseEvent {
     constructor(repo, info, action, data) {
         this.repo   = repo;
         this.info   = info;
@@ -27,14 +27,13 @@ class BaseEvent {
         return [...new Set([this.repo.owner.login, this.info.user.login, this.sender])];
     }
 
-    _buildMentions() {
-        const sources = arguments;
+    _buildMentions(...sources) {
         const mentions = new Set();
         const re = /@([\w-]+)/g;
 
-        for (let source of sources) {
+        for (const source of sources) {
             let match;
-            while (match = re.exec(source)) {
+            while ((match = re.exec(source))) {
                 const login = match[1];
 
                 if (!this.participants.includes(login)) {
@@ -56,6 +55,4 @@ class BaseEvent {
 
         this.details = details;
     }
-}
-
-module.exports = BaseEvent;
+};

@@ -15,15 +15,14 @@
 // Author:
 //   jaredru
 
-"use strict";
-const Github = require("./github");
 const Redis  = require("ioredis");
+const Github = require("./github");
 
 //
 // Hubot
 //
 
-module.exports = function(robot) {
+module.exports = function init(robot) {
     const redis  = new Redis(process.env.HUBOT_GITHUB_SPY_REDIS_URL);
     const github = new Github(robot, redis);
 
@@ -33,16 +32,6 @@ module.exports = function(robot) {
 
     robot.on("slack-attachment", (data) => {
         robot.logger.info("slack-attachment:", JSON.stringify(data, null, "  "));
-    });
-
-    robot.respond(/test-attach\s+(.*)$/i, (res) => {
-        const data = formatNewLines(JSON.parse(res.match[1]));
-        data.mrkdwn_in = ["pretext", "text", "fields"];
-
-        robot.emit("slack-attachment", {
-            channel:     res.message.user.name,
-            attachments: data
-        });
     });
 
     //
@@ -93,7 +82,7 @@ module.exports = function(robot) {
     });
 
     robot.respond(/repos?\??\s*$/i, (res) => {
-        _listReposForUser(res);
+        listReposForUser(res);
     });
 
     robot.respond(/unwatch ([\w-]+\/[\w-]+)\s*$/i, (res) => {
@@ -118,7 +107,7 @@ module.exports = function(robot) {
     });
 
     robot.respond(/issues?\??\s*$/i, (res) => {
-        _listIssuesForUser(res);
+        listIssuesForUser(res);
     });
 
     robot.respond(/unwatch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) => {
@@ -142,29 +131,28 @@ module.exports = function(robot) {
         res.send("OK");
     });
 
-    function _listReposForUser(res) {
+    function listReposForUser(res) {
         github.reposForUser(res.message.user, (repos) => {
-            _listItemsForUser("repos", repos, res);
+            listItemsForUser("repos", repos, res);
         });
     }
 
-    function _listIssuesForUser(res) {
+    function listIssuesForUser(res) {
         github.issuesForUser(res.message.user, (issues) => {
-            _listItemsForUser("issues", issues, res);
+            listItemsForUser("issues", issues, res);
         });
     }
 
-    function _listItemsForUser(type, items, res) {
+    function listItemsForUser(type, items, res) {
         if (items.length) {
-            items = items
+            const formatted = items
                 .sort()
                 .map(item => `  - ${item}`)
                 .join("\n");
 
-            res.reply(`You are watching the GitHub ${type}:\n${items}`);
+            res.reply(`You are watching the GitHub ${type}:\n${formatted}`);
         } else {
             res.reply(`You are not watching any GitHub ${type}.`);
         }
     }
-}
-
+};

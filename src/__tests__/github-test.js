@@ -1,25 +1,34 @@
+/* eslint-disable
+    camelcase,
+    global-require,
+    no-param-reassign,
+    no-shadow,
+*/
 
-"use strict";
+jest.mock("ioredis");
+jest.mock("../events");
 
-jest.unmock("../github");
+const Redis = require("ioredis");
+const Events = require("../events");
+const Github = require("../github");
+
+Events.create.mockImplementation((action, data) => data);
 
 describe("github", () => {
     let robot;
     let redis;
 
     beforeEach(() => {
-        const Redis = require("ioredis");
+        jest.clearAllMocks();
 
         robot = {
             brain: {
-                userForId: jest.fn(function(userId) {
-                    return {
-                        name: userId.replace("ID_", "")
-                    };
-                })
+                userForId: jest.fn(userId => ({
+                    name: userId.replace("ID_", ""),
+                })),
             },
             logger: {
-                info: jest.fn()
+                info: jest.fn(),
             },
             emit: jest.fn(),
         };
@@ -32,13 +41,12 @@ describe("github", () => {
     });
 
     function create() {
-        const Github = require("../github");
         return new Github(robot, redis);
     }
 
     const userId = "USER_ID";
     const user = {
-        id: userId
+        id: userId,
     };
 
     describe("logins", () => {
@@ -85,13 +93,13 @@ describe("github", () => {
 
             it(`adds ${type} watches`, () => {
                 const github = create();
-                let   result;
+                let result;
 
-                redis.exec.mockReturnValue(true)
+                redis.exec.mockReturnValue(true);
                 result = github[`addWatcherFor${capitalize(type)}`](user, "FOO/BAR");
                 expect(result).toEqual(true);
 
-                redis.exec.mockReturnValue(false)
+                redis.exec.mockReturnValue(false);
                 result = github[`addWatcherFor${capitalize(type)}`](user, "FOO/BAR");
                 expect(result).toEqual(false);
 
@@ -109,7 +117,7 @@ describe("github", () => {
                 expect(redis.smembers).toBeCalledWith(`user:${userId}:${type}`, jasmine.any(Function));
 
                 const cb = redis.smembers.mock.calls[0][1];
-                let   items;
+                let items;
 
                 items = [];
                 cb(null, items);
@@ -122,13 +130,13 @@ describe("github", () => {
 
             it(`removes ${type} watches`, () => {
                 const github = create();
-                let   result;
+                let result;
 
-                redis.exec.mockReturnValue(true)
+                redis.exec.mockReturnValue(true);
                 result = github[`removeWatcherFor${capitalize(type)}`](user, "FOO/BAR");
                 expect(result).toEqual(true);
 
-                redis.exec.mockReturnValue(false)
+                redis.exec.mockReturnValue(false);
                 result = github[`removeWatcherFor${capitalize(type)}`](user, "FOO/BAR");
                 expect(result).toEqual(false);
 
@@ -163,60 +171,54 @@ describe("github", () => {
         const repoKey         = `repo:${repoId}`;
 
         let data;
-        let events;
 
         beforeEach(() => {
             data = {
-                id: eventId,
+                id:           eventId,
                 repoId,
-                sender: senderId,
+                sender:       senderId,
                 action,
                 participants: ["FOO_USER", "BAR_USER"],
-                mentions: ["MENTIONED_USER"],
-                commits: [
+                mentions:     ["MENTIONED_USER"],
+                commits:      [
                     {
-                        id: `${repoId}/1234567890`,
-                        author: 'COMMITTER1',
-                        title: 'commit 1',
+                        id:     `${repoId}/1234567890`,
+                        author: "COMMITTER1",
+                        title:  "commit 1",
                     },
                     {
-                        id: `${repoId}/2345678901`,
-                        author: 'COMMITTER2',
-                        title: 'commit 2',
+                        id:     `${repoId}/2345678901`,
+                        author: "COMMITTER2",
+                        title:  "commit 2",
                     },
-                ]
+                ],
             };
-
-            events = require("../events");
-            events.create.mockImplementation((action, data) => data);
         });
 
         afterEach(() => {
-            data   = null;
-            events = null;
+            data = null;
         });
 
         it("creates the right event", () => {
             const github = create();
-            const events = require("../events");
 
             github.handle("push", data);
-            expect(events.create).lastCalledWith(push, data);
+            expect(Events.create).lastCalledWith(push, data);
 
             github.handle("commit_comment", data);
-            expect(events.create).lastCalledWith(commit_comment, data);
+            expect(Events.create).lastCalledWith(commit_comment, data);
 
             github.handle("issues", data);
-            expect(events.create).lastCalledWith(action, data);
+            expect(Events.create).lastCalledWith(action, data);
 
             github.handle("issue_comment", data);
-            expect(events.create).lastCalledWith(commented, data);
+            expect(Events.create).lastCalledWith(commented, data);
 
             github.handle("pull_request", data);
-            expect(events.create).lastCalledWith(action, data);
+            expect(Events.create).lastCalledWith(action, data);
 
             github.handle("pull_request_review_comment", data);
-            expect(events.create).lastCalledWith(commented, data);
+            expect(Events.create).lastCalledWith(commented, data);
         });
 
         it("adds the participants without details", () => {
@@ -257,15 +259,14 @@ describe("github", () => {
         it("sets title for push", () => {
             const github = create();
             github.handle("push", data);
-            console.dir(redis.sadd.mock.calls[0]);
 
             expect(redis.sadd).toBeCalledWith(`participants:${data.commits[0].id}`, data.commits[0].author);
             expect(redis.expire).toBeCalledWith(`participants:${data.commits[0].id}`, jasmine.any(Number));
-            expect(redis.set).toBeCalledWith(`title:${data.commits[0].id}`, data.commits[0].title, 'EX', jasmine.any(Number));
+            expect(redis.set).toBeCalledWith(`title:${data.commits[0].id}`, data.commits[0].title, "EX", jasmine.any(Number));
 
             expect(redis.sadd).toBeCalledWith(`participants:${data.commits[1].id}`, data.commits[1].author);
             expect(redis.expire).toBeCalledWith(`participants:${data.commits[1].id}`, jasmine.any(Number));
-            expect(redis.set).toBeCalledWith(`title:${data.commits[1].id}`, data.commits[1].title, 'EX', jasmine.any(Number));
+            expect(redis.set).toBeCalledWith(`title:${data.commits[1].id}`, data.commits[1].title, "EX", jasmine.any(Number));
 
             expect(redis.exec).toBeCalled();
         });
@@ -274,7 +275,7 @@ describe("github", () => {
             const github = create();
 
             data.details = {
-                foo: "BAR"
+                foo: "BAR",
             };
             github.handle("issues", data);
 
@@ -297,7 +298,7 @@ describe("github", () => {
             participantLogins.concat(watchers)
                 .map(login => login.replace("ID_", ""))
                 .filter(userName => userName !== senderId)
-                .forEach(userName => {
+                .forEach((userName) => {
                     expect(robot.emit).toBeCalledWith("slack-attachment", {
                         channel:     userName,
                         attachments: [data.details],
