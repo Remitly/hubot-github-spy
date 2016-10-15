@@ -9,6 +9,7 @@ const ONE_DAY  = 60 * 60 * 24;
 const ONE_WEEK = ONE_DAY * 7;
 
 function formatNewLines(obj) {
+    if (obj == null) return obj;
     const ref = obj;
 
     Object.keys(ref).forEach((key) => {
@@ -116,6 +117,7 @@ module.exports = class Github {
         case "issues":
         case "issue_comment":
         case "pull_request":
+        case "pull_request_review":
         case "pull_request_review_comment":
             this._handleIssue(event, data);
             break;

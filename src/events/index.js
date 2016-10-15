@@ -3,6 +3,7 @@ const CommitCommentEvent = require("./commit-comment");
 const IssueCommentEvent = require("./issue-comment");
 const IssueEvent = require("./issue");
 const PushEvent = require("./push");
+const ReviewEvent = require("./review");
 
 module.exports = {
     create(event, data) {
@@ -25,6 +26,10 @@ module.exports = {
         case "issue_comment":
         case "pull_request_review_comment":
             Type = IssueCommentEvent;
+            break;
+
+        case "pull_request_review":
+            Type = ReviewEvent;
             break;
 
         default:

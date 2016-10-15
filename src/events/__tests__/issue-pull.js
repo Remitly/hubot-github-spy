@@ -30,11 +30,6 @@ beforeEach(() => {
     };
 });
 
-afterEach(() => {
-    info = null;
-    data = null;
-});
-
 function verifyDetails(event, pretext, title, text, titleLink) {
     let fallback = `${pretext}\n> ${title}`;
 

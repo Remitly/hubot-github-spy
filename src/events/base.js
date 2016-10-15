@@ -36,6 +36,7 @@ module.exports = class BaseEvent {
             break;
         }
 
+        this.participants.add(this.comment.user.login);
         this.addMentions(this.comment.body);
         this.setDetails({
             title:      `${title} by ${this.sender}`,

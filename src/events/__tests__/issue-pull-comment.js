@@ -27,12 +27,16 @@ beforeEach(() => {
         sender: {
             login: "SENDER",
         },
-    };
-});
 
-afterEach(() => {
-    info = null;
-    data = null;
+        comment: {
+            body:     "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
+            html_url: "http://comment",
+
+            user: {
+                login: "COMMENTER",
+            },
+        },
+    };
 });
 
 function verifyDetails(event, pretext, title, text, titleLink) {
@@ -54,55 +58,22 @@ function verifyDetails(event, pretext, title, text, titleLink) {
 }
 
 function defineTests(type, pretext) {
-    it("handles 'created'", () => {
-        data.comment = {
-            body:     "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
-            html_url: "http://comment",
-        };
-
-        data.action = "created";
+    function verifyComment(action, title) {
+        data.action = action;
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
         expect(event.comment).toEqual(data.comment);
-        expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
+        expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER", "COMMENTER"]));
         expect(event.mentions).toEqual(new Set(["COMMENT_MENTION1", "COMMENT_MENTION2"]));
 
-        verifyDetails(event, pretext, "Comment by SENDER", data.comment.body, "http://comment");
-    });
+        verifyDetails(event, pretext, title, data.comment.body, "http://comment");
+    }
 
-    it("handles 'edited'", () => {
-        data.comment = {
-            body:     "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
-            html_url: "http://comment",
-        };
-
-        data.action = "edited";
-        const event = Events.create(type, data);
-
-        expect(event.assignee).toBeUndefined();
-        expect(event.comment).toEqual(data.comment);
-        expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
-        expect(event.mentions).toEqual(new Set(["COMMENT_MENTION1", "COMMENT_MENTION2"]));
-
-        verifyDetails(event, pretext, "Comment edited by SENDER", data.comment.body, "http://comment");
-    });
-
-    it("handles 'deleted'", () => {
-        data.comment = {
-            body:     "+1!!! @COMMENT_MENTION1 heyo @COMMENT_MENTION2 wut @USER",
-            html_url: "http://comment",
-        };
-
-        data.action = "deleted";
-        const event = Events.create(type, data);
-
-        expect(event.assignee).toBeUndefined();
-        expect(event.comment).toEqual(data.comment);
-        expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
-        expect(event.mentions).toEqual(new Set(["COMMENT_MENTION1", "COMMENT_MENTION2"]));
-
-        verifyDetails(event, pretext, "Comment deleted by SENDER", data.comment.body, "http://comment");
+    it("handles the expected actions", () => {
+        verifyComment("created", "Comment by SENDER");
+        verifyComment("edited", "Comment edited by SENDER");
+        verifyComment("deleted", "Comment deleted by SENDER");
     });
 }
 
