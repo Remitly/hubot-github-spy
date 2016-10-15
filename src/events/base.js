@@ -1,34 +1,50 @@
 
 module.exports = class BaseEvent {
-    constructor(repo, info, action, data) {
-        this.repo   = repo;
-        this.info   = info;
-        this.action = action;
-        this.data   = data;
-        this.repoId = this.repo.full_name.toLowerCase();
+    constructor(data) {
+        this.data    = data;
+        this.action  = data.action;
+        this.repo    = data.repository;
+        this.comment = data.comment;
 
-        this.id           = this._buildId();
+        this.repoId       = this.repo.full_name.toLowerCase();
+        this.id           = this.buildId();
         this.sender       = this.data.sender.login;
-        this.participants = this._buildParticipants();
-        this.mentions     = [];
+        this.participants = new Set([this.repo.owner.login, this.sender]);
+        this.mentions     = new Set();
 
-        this._buildDetails();
+        this.buildDetails();
     }
 
     //
-    // Private
+    // Protected
     //
 
-    _buildId() {
-        return `${this.repoId}#${this.info.number}`;
+    // Helpers
+
+    buildCommentDetails() {
+        let title = "Comment";
+        switch (this.action) {
+        case "edited":
+            title += " edited";
+            break;
+
+        case "deleted":
+            title += " deleted";
+            break;
+
+        default:
+            break;
+        }
+
+        this.addMentions(this.comment.body);
+        this.setDetails({
+            title:      `${title} by ${this.sender}`,
+            title_link: this.comment.html_url,
+            text:       this.comment.body,
+        });
     }
 
-    _buildParticipants() {
-        return [...new Set([this.repo.owner.login, this.info.user.login, this.sender])];
-    }
-
-    _buildMentions(...sources) {
-        const mentions = new Set();
+    addMentions(...sources) {
         const re = /@([\w-]+)/g;
 
         for (const source of sources) {
@@ -36,17 +52,15 @@ module.exports = class BaseEvent {
             while ((match = re.exec(source))) {
                 const login = match[1];
 
-                if (!this.participants.includes(login)) {
-                    mentions.add(login);
+                if (!this.participants.has(login)) {
+                    this.mentions.add(login);
                 }
             }
         }
-
-        this.mentions = [...mentions];
     }
 
-    _setDetails(details) {
-        details.pretext  = this._pretext();
+    setDetails(details) {
+        details.pretext  = this.pretext();
         details.fallback = `${details.pretext}\n> ${details.title}`;
 
         if (details.text) {
@@ -55,4 +69,7 @@ module.exports = class BaseEvent {
 
         this.details = details;
     }
+
+    /* abstract buildId() */
+    /* abstract pretext() */
 };

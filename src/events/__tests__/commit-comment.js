@@ -36,8 +36,8 @@ describe("push events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBe(data.comment);
-            expect(event.participants).toEqual(["OWNER", "SENDER"]);
-            expect(event.mentions).toEqual(["USER1"]);
+            expect(event.participants).toEqual(new Set(["OWNER", "SENDER"]));
+            expect(event.mentions).toEqual(new Set(["USER1"]));
 
             expect(event.details.pretext).toEqual("[<http://repo|FOO/BAR>] Commit <http://repo/commit/1234567890|1234567: No title>");
             expect(event.details.title).toEqual("Comment by SENDER");
@@ -52,8 +52,8 @@ describe("push events", () => {
 
             expect(event.assignee).toBeUndefined();
             expect(event.comment).toBe(data.comment);
-            expect(event.participants).toEqual(["OWNER", "SENDER"]);
-            expect(event.mentions).toEqual(["USER1"]);
+            expect(event.participants).toEqual(new Set(["OWNER", "SENDER"]));
+            expect(event.mentions).toEqual(new Set(["USER1"]));
 
             expect(event.details.pretext).toEqual("[<http://repo|FOO/BAR>] Commit <http://repo/commit/1234567890|1234567: commit title>");
             expect(event.details.title).toEqual("Comment by SENDER");

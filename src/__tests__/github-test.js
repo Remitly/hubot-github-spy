@@ -157,11 +157,7 @@ describe("github", () => {
     });
 
     describe("events", () => {
-        const action         = "FOO!";
-        const commented      = "commented";
-        const push           = "push";
-        const commit_comment = "commit_comment";
-
+        const action   = "FOO!";
         const eventId  = "FOO_ID";
         const repoId   = "REPO_ID";
         const senderId = "SENDER_ID";
@@ -203,22 +199,22 @@ describe("github", () => {
             const github = create();
 
             github.handle("push", data);
-            expect(Events.create).lastCalledWith(push, data);
+            expect(Events.create).lastCalledWith("push", data);
 
             github.handle("commit_comment", data);
-            expect(Events.create).lastCalledWith(commit_comment, data);
+            expect(Events.create).lastCalledWith("commit_comment", data);
 
             github.handle("issues", data);
-            expect(Events.create).lastCalledWith(action, data);
+            expect(Events.create).lastCalledWith("issues", data);
 
             github.handle("issue_comment", data);
-            expect(Events.create).lastCalledWith(commented, data);
+            expect(Events.create).lastCalledWith("issue_comment", data);
 
             github.handle("pull_request", data);
-            expect(Events.create).lastCalledWith(action, data);
+            expect(Events.create).lastCalledWith("pull_request", data);
 
             github.handle("pull_request_review_comment", data);
-            expect(Events.create).lastCalledWith(commented, data);
+            expect(Events.create).lastCalledWith("pull_request_review_comment", data);
         });
 
         it("adds the participants without details", () => {

@@ -112,20 +112,12 @@ module.exports = class Github {
             this._handleCommitComment(event, data);
             break;
 
-        // issues
+        // issues and pull requests
         case "issues":
-            this._handleIssue(data.action, data);
-            break;
         case "issue_comment":
-            this._handleIssue("commented", data);
-            break;
-
-        // pull requests
         case "pull_request":
-            this._handleIssue(data.action, data);
-            break;
         case "pull_request_review_comment":
-            this._handleIssue("commented", data);
+            this._handleIssue(event, data);
             break;
 
         default:
@@ -210,7 +202,6 @@ module.exports = class Github {
             .expire(titleKey, DEFAULT_EXPIRATION)
             .exec((err, results) => {
                 const title = results[0][1];
-                if (!title) return;
 
                 // re-build the data with the title in it
                 const merged = Object.assign({}, data, {
@@ -227,10 +218,10 @@ module.exports = class Github {
 
     // Issues
 
-    _handleIssue(action, data) {
+    _handleIssue(raw, data) {
         // create the event itself and process it
-        const event = Events.create(action, data);
-        this._processEvent(action, event);
+        const event = Events.create(raw, data);
+        this._processEvent(data.action, event);
     }
 
     // Event Processing

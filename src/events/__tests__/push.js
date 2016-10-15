@@ -61,8 +61,8 @@ describe("push events", () => {
 
         expect(event.assignee).toBeUndefined();
         expect(event.comment).toBeUndefined();
-        expect(event.participants).toEqual(["OWNER", "SENDER"]);
-        expect(event.mentions).toEqual([]);
+        expect(event.participants).toEqual(new Set(["OWNER", "SENDER"]));
+        expect(event.mentions).toEqual(new Set());
 
         expect(event.details.pretext).toEqual("[<http://repo|FOO/BAR>] Branch 'foo': <http://compare|3 Commits>");
         expect(event.details.title).toEqual("Pushed by SENDER");
