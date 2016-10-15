@@ -27,14 +27,6 @@ module.exports = function init(robot) {
     const github = new Github(robot, redis);
 
     //
-    // Debug
-    //
-
-    robot.on("slack-attachment", (data) => {
-        robot.logger.info("slack-attachment:", JSON.stringify(data, null, "  "));
-    });
-
-    //
     // Logins
     //
 

@@ -297,21 +297,30 @@ module.exports = class Github {
                 }
 
                 // notify all the watchers, except the sender
+                if (watchers.size === 0) return;
+
+                const isSlack = (this._robot.adapterName === "slack");
+                const payload = isSlack
+                    ? {
+                        attachments: [details],
+                    }
+                    : details.fallback;
+
+                const log = [JSON.stringify(payload, null, "  ")];
                 watchers.forEach((userId) => {
+                    const user = isSlack
+                        ? this._robot.adapter.client.rtm.dataStore.getUserById(userId)
+                        : this._robot.brain.userForId(userId);
+
                     if (userId !== results[1][1]) {
-                        const user = this._robot.brain.userForId(userId);
-
-                        // TODO: handle generic sends if we're not connected to slack
-                        //  this._robot.send(user, details.fallback)
-
-                        this._robot.emit("slack-attachment", {
-                            channel:     user.name,
-                            attachments: [details],
-                        });
+                        this._robot.send(user, payload);
+                        log.push(`- Sent to ${user.name}`);
                     } else {
-                        this._robot.logger.info(`Skipping ${event.sender}: ${details.fallback}`);
+                        log.push(`- Skipped ${user.name}`);
                     }
                 });
+
+                this._robot.logger.info(log.join("\n"));
             });
     }
 };

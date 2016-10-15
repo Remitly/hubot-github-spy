@@ -30,7 +30,7 @@ describe("github", () => {
             logger: {
                 info: jest.fn(),
             },
-            emit: jest.fn(),
+            send: jest.fn(),
         };
         redis = new Redis();
     });
@@ -267,12 +267,10 @@ describe("github", () => {
             expect(redis.exec).toBeCalled();
         });
 
-        it("notifies participants", () => {
-            const github = create();
+        function verifyNotify(adapterName, payload) {
+            robot.adapterName = adapterName;
 
-            data.details = {
-                foo: "BAR",
-            };
+            const github = create();
             github.handle("issues", data);
 
             const watchers     = ["ID_BAZ", "ID_FOO", "ID_BAR"];
@@ -295,11 +293,29 @@ describe("github", () => {
                 .map(login => login.replace("ID_", ""))
                 .filter(userName => userName !== senderId)
                 .forEach((userName) => {
-                    expect(robot.emit).toBeCalledWith("slack-attachment", {
-                        channel:     userName,
-                        attachments: [data.details],
-                    });
+                    expect(robot.send).toBeCalledWith(
+                        { name: userName },
+                        payload,
+                    );
                 });
+        }
+
+        describe("notifies participants", () => {
+            beforeEach(() => {
+                data.details = {
+                    foo:      "BAR",
+                    fallback: "FALLBACK",
+                };
+            });
+
+            it("via slack", () => {
+                verifyNotify("slack", { attachments: [data.details] });
+            });
+
+            it("via non-slack", () => {
+                verifyNotify("FOO", data.details.fallback);
+                verifyNotify("BAR", data.details.fallback);
+            });
         });
     });
 });
