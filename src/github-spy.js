@@ -35,7 +35,7 @@ module.exports = function init(robot) {
         const alias = res.match[1];
 
         github.setLoginForUser(user, alias);
-        res.reply(`Your GitHub alias is set to ${alias}.`);
+        robot.messageRoom(user.id, `Your GitHub alias is set to ${alias}.`);
     });
 
     robot.respond(/alias\??$/i, (res) => {
@@ -43,9 +43,9 @@ module.exports = function init(robot) {
 
         github.loginForUser(user, (alias) => {
             if (alias) {
-                res.reply(`Your GitHub alias is set to ${alias}.`);
+                robot.messageRoom(user.id, `Your GitHub alias is set to ${alias}.`);
             } else {
-                res.reply("You haven't set a GitHub alias.");
+                robot.messageRoom(user.id, "You haven't set a GitHub alias.");
             }
         });
     });
@@ -56,9 +56,9 @@ module.exports = function init(robot) {
         github.loginForUser(user, (alias) => {
             if (alias) {
                 github.setLoginForUser(user);
-                res.reply("Your GitHub alias has been removed.");
+                robot.messageRoom(user.id, "Your GitHub alias has been removed.");
             } else {
-                res.reply("You haven't set a GitHub alias.");
+                robot.messageRoom(user.id, "You haven't set a GitHub alias.");
             }
         });
     });
@@ -70,11 +70,12 @@ module.exports = function init(robot) {
         const repo = res.match[1];
 
         github.addWatcherForRepo(user, repo);
-        res.reply(`You are now watching the GitHub repo ${repo}.`);
+        robot.messageRoom(user.id, `You are now watching the GitHub repo ${repo}.`);
     });
 
     robot.respond(/repos?\??\s*$/i, (res) => {
-        listReposForUser(res);
+        const user = res.message.user;
+        listReposForUser(user);
     });
 
     robot.respond(/unwatch ([\w-]+\/[\w-]+)\s*$/i, (res) => {
@@ -82,9 +83,9 @@ module.exports = function init(robot) {
         const repo = res.match[1];
 
         if (github.removeWatcherForRepo(user, repo)) {
-            res.reply(`You are no longer watching the GitHub repo ${repo}.`);
+            robot.messageRoom(user.id, `You are no longer watching the GitHub repo ${repo}.`);
         } else {
-            res.reply(`You are not watching the GitHub repo ${repo}.`);
+            robot.messageRoom(user.id, `You are not watching the GitHub repo ${repo}.`);
         }
     });
 
@@ -95,11 +96,12 @@ module.exports = function init(robot) {
         const issue = res.match[1];
 
         github.addWatcherForIssue(user, issue);
-        res.reply(`You are now watching the GitHub issue ${issue}.`);
+        robot.messageRoom(user.id, `You are now watching the GitHub issue ${issue}.`);
     });
 
     robot.respond(/issues?\??\s*$/i, (res) => {
-        listIssuesForUser(res);
+        const user = res.message.user;
+        listIssuesForUser(user);
     });
 
     robot.respond(/unwatch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) => {
@@ -107,9 +109,9 @@ module.exports = function init(robot) {
         const issue = res.match[1];
 
         if (github.removeWatcherForIssue(user, issue)) {
-            res.reply(`You are no longer watching the GitHub issue ${issue}.`);
+            robot.messageRoom(user.id, `You are no longer watching the GitHub issue ${issue}.`);
         } else {
-            res.reply(`You are not watching the GitHub issue ${issue}.`);
+            robot.messageRoom(user.id, `You are not watching the GitHub issue ${issue}.`);
         }
     });
 
@@ -123,28 +125,28 @@ module.exports = function init(robot) {
         res.send("OK");
     });
 
-    function listReposForUser(res) {
-        github.reposForUser(res.message.user, (repos) => {
-            listItemsForUser("repos", repos, res);
+    function listReposForUser(user) {
+        github.reposForUser(user, (repos) => {
+            listItemsForUser("repos", repos, user);
         });
     }
 
-    function listIssuesForUser(res) {
-        github.issuesForUser(res.message.user, (issues) => {
-            listItemsForUser("issues", issues, res);
+    function listIssuesForUser(user) {
+        github.issuesForUser(user, (issues) => {
+            listItemsForUser("issues", issues, user);
         });
     }
 
-    function listItemsForUser(type, items, res) {
+    function listItemsForUser(type, items, user) {
         if (items.length) {
             const formatted = items
                 .sort()
                 .map(item => `  - ${item}`)
                 .join("\n");
 
-            res.reply(`You are watching the GitHub ${type}:\n${formatted}`);
+            robot.messageRoom(user.id, `You are watching the GitHub ${type}:\n${formatted}`);
         } else {
-            res.reply(`You are not watching any GitHub ${type}.`);
+            robot.messageRoom(user.id, `You are not watching any GitHub ${type}.`);
         }
     }
 };

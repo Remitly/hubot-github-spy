@@ -313,7 +313,7 @@ module.exports = class Github {
                         : this._robot.brain.userForId(userId);
 
                     if (userId !== results[1][1]) {
-                        this._robot.send(user, payload);
+                        this._robot.messageRoom(user.id, payload);
                         log.push(`- Sent to ${user.name}`);
                     } else {
                         log.push(`- Skipped ${user.name}`);
