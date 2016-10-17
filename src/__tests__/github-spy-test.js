@@ -30,6 +30,8 @@ describe("hubot github spy", () => {
             router: {
                 post: jest.fn(),
             },
+
+            messageRoom: jest.fn(),
         };
 
         initGithubSpy(robot);
@@ -114,17 +116,15 @@ describe("hubot github spy", () => {
         });
 
         it("sets alias", () => {
-            const cb    = findCallback("alias foo");
-            const reply = jest.fn();
+            const cb = findCallback("alias foo");
 
             cb({
                 message,
                 match: [null, alias],
-                reply,
             });
 
             expect(github.setLoginForUser).lastCalledWith(message.user, alias);
-            expect(reply).toBeCalledWith(`Your GitHub alias is set to ${alias}.`);
+            expect(robot.messageRoom).lastCalledWith("fooId", `Your GitHub alias is set to ${alias}.`);
         });
 
         it("sets up alias?", () => {
@@ -142,22 +142,20 @@ describe("hubot github spy", () => {
         });
 
         it("returns alias", () => {
-            const cb    = findCallback("alias?");
-            const reply = jest.fn();
+            const cb = findCallback("alias?");
 
             cb({
                 message,
-                reply,
             });
 
             expect(github.loginForUser).lastCalledWith(message.user, jasmine.any(Function));
             const logincb = github.loginForUser.mock.calls[0][1];
 
             logincb(null);
-            expect(reply).lastCalledWith("You haven't set a GitHub alias.");
+            expect(robot.messageRoom).lastCalledWith("fooId", "You haven't set a GitHub alias.");
 
             logincb(alias);
-            expect(reply).lastCalledWith(`Your GitHub alias is set to ${alias}.`);
+            expect(robot.messageRoom).lastCalledWith("fooId", `Your GitHub alias is set to ${alias}.`);
         });
 
         it("sets up unalias", () => {
@@ -174,12 +172,10 @@ describe("hubot github spy", () => {
         });
 
         it("removes alias", () => {
-            const cb    = findCallback("unalias");
-            const reply = jest.fn();
+            const cb = findCallback("unalias");
 
             cb({
                 message,
-                reply,
             });
 
             expect(github.loginForUser).lastCalledWith(message.user, jasmine.any(Function));
@@ -187,11 +183,11 @@ describe("hubot github spy", () => {
 
             logincb(null);
             expect(github.setLoginForUser).not.toBeCalled();
-            expect(reply).lastCalledWith("You haven't set a GitHub alias.");
+            expect(robot.messageRoom).lastCalledWith("fooId", "You haven't set a GitHub alias.");
 
             logincb(alias);
             expect(github.setLoginForUser).lastCalledWith(message.user);
-            expect(reply).lastCalledWith("Your GitHub alias has been removed.");
+            expect(robot.messageRoom).lastCalledWith("fooId", "Your GitHub alias has been removed.");
         });
     });
 
@@ -199,14 +195,14 @@ describe("hubot github spy", () => {
         return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
-    function verifyWatch(type, name, reply) {
+    function verifyWatch(type, name) {
         const fn = github[`addWatcherFor${capitalize(type)}`];
 
         expect(fn).lastCalledWith(message.user, name);
-        expect(reply).lastCalledWith(`You are now watching the GitHub ${type} ${name}.`);
+        expect(robot.messageRoom).lastCalledWith("fooId", `You are now watching the GitHub ${type} ${name}.`);
     }
 
-    function verifyWatching(type, names, reply) {
+    function verifyWatching(type, names) {
         const fn = github[`${type}sForUser`];
         expect(fn).lastCalledWith(message.user, jasmine.any(Function));
 
@@ -215,17 +211,17 @@ describe("hubot github spy", () => {
 
         if (names.length) {
             const formatted = names.sort().map(name => `  - ${name}`).join("\n");
-            expect(reply).lastCalledWith(`You are watching the GitHub ${type}s:\n${formatted}`);
+            expect(robot.messageRoom).lastCalledWith("fooId", `You are watching the GitHub ${type}s:\n${formatted}`);
         } else {
-            expect(reply).lastCalledWith(`You are not watching any GitHub ${type}s.`);
+            expect(robot.messageRoom).lastCalledWith("fooId", `You are not watching any GitHub ${type}s.`);
         }
     }
 
-    function verifyUnwatch(type, name, reply) {
+    function verifyUnwatch(type, name) {
         const fn = github[`removeWatcherFor${capitalize(type)}`];
 
         expect(fn).lastCalledWith(message.user, name);
-        expect(reply).lastCalledWith(`You are not watching the GitHub ${type} ${name}.`);
+        expect(robot.messageRoom).lastCalledWith("fooId", `You are not watching the GitHub ${type} ${name}.`);
     }
 
     describe("repos", () => {
@@ -253,17 +249,15 @@ describe("hubot github spy", () => {
         });
 
         it("sets watch repo", () => {
-            const cb    = findCallback("watch foo/bar");
-            const reply = jest.fn();
+            const cb = findCallback("watch foo/bar");
 
             const repo = "FOO/BAR";
             cb({
                 message,
                 match: [null, repo],
-                reply,
             });
 
-            verifyWatch("repo", repo, reply);
+            verifyWatch("repo", repo);
         });
 
         it("sets up repos?", () => {
@@ -280,16 +274,14 @@ describe("hubot github spy", () => {
         });
 
         it("returns watch repos", () => {
-            const cb    = findCallback("repos?");
-            const reply = jest.fn();
+            const cb = findCallback("repos?");
 
             cb({
                 message,
-                reply,
             });
 
-            verifyWatching("repo", [], reply);
-            verifyWatching("repo", ["foo/baz", "foo/bar"], reply);
+            verifyWatching("repo", []);
+            verifyWatching("repo", ["foo/baz", "foo/bar"]);
         });
 
         it("sets up unwatch repo", () => {
@@ -316,17 +308,15 @@ describe("hubot github spy", () => {
         });
 
         it("removes watch repo", () => {
-            const cb    = findCallback("unwatch foo/bar");
-            const reply = jest.fn();
+            const cb = findCallback("unwatch foo/bar");
 
             const repo = "FOO/BAR";
             cb({
                 message,
                 match: [null, repo],
-                reply,
             });
 
-            verifyUnwatch("repo", repo, reply);
+            verifyUnwatch("repo", repo);
         });
     });
 
@@ -373,17 +363,15 @@ describe("hubot github spy", () => {
         });
 
         it("sets watch issue", () => {
-            const cb    = findCallback("watch foo/bar#37");
-            const reply = jest.fn();
+            const cb = findCallback("watch foo/bar#37");
 
             const issue = "FOO/BAR#37";
             cb({
                 message,
                 match: [null, issue],
-                reply,
             });
 
-            verifyWatch("issue", issue, reply);
+            verifyWatch("issue", issue);
         });
 
         it("sets up issues?", () => {
@@ -400,16 +388,14 @@ describe("hubot github spy", () => {
         });
 
         it("returns watch issues", () => {
-            const cb    = findCallback("issues?");
-            const reply = jest.fn();
+            const cb = findCallback("issues?");
 
             cb({
                 message,
-                reply,
             });
 
-            verifyWatching("issue", [], reply);
-            verifyWatching("issue", ["FOO/BAZ#12", "FOO/BAR#33"], reply);
+            verifyWatching("issue", []);
+            verifyWatching("issue", ["FOO/BAZ#12", "FOO/BAR#33"]);
         });
 
         it("sets up unwatch issue", () => {
@@ -454,17 +440,15 @@ describe("hubot github spy", () => {
         });
 
         it("removes watch issue", () => {
-            const cb    = findCallback("unwatch foo/bar#37");
-            const reply = jest.fn();
+            const cb = findCallback("unwatch foo/bar#37");
 
             const issue = "FOO/BAR#37";
             cb({
                 message,
                 match: [null, issue],
-                reply,
             });
 
-            verifyUnwatch("issue", issue, reply);
+            verifyUnwatch("issue", issue);
         });
     });
 

@@ -18,19 +18,31 @@ describe("github", () => {
     let robot;
     let redis;
 
+    const userForId = jest.fn(userId => ({
+        id:   userId,
+        name: userId.replace("ID_", ""),
+    }));
+
     beforeEach(() => {
         jest.clearAllMocks();
 
         robot = {
+            adapter: {
+                client: {
+                    rtm: {
+                        dataStore: {
+                            getUserById: userForId,
+                        },
+                    },
+                },
+            },
             brain: {
-                userForId: jest.fn(userId => ({
-                    name: userId.replace("ID_", ""),
-                })),
+                userForId,
             },
             logger: {
                 info: jest.fn(),
             },
-            send: jest.fn(),
+            messageRoom: jest.fn(),
         };
         redis = new Redis();
     });
@@ -293,8 +305,8 @@ describe("github", () => {
                 .map(login => login.replace("ID_", ""))
                 .filter(userName => userName !== senderId)
                 .forEach((userName) => {
-                    expect(robot.send).toBeCalledWith(
-                        { name: userName },
+                    expect(robot.messageRoom).toBeCalledWith(
+                        `ID_${userName}`,
                         payload,
                     );
                 });
