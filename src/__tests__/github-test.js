@@ -182,13 +182,15 @@ describe("github", () => {
 
         beforeEach(() => {
             data = {
-                id:           eventId,
+                id:     eventId,
                 repoId,
-                sender:       senderId,
+                sender: senderId,
                 action,
-                participants: ["FOO_USER", "BAR_USER"],
-                mentions:     ["MENTIONED_USER"],
-                commits:      [
+
+                participants: new Set(["FOO_USER", "BAR_USER"]),
+                mentions:     new Set(["MENTIONED_USER"]),
+
+                commits: [
                     {
                         id:     `${repoId}/1234567890`,
                         author: "COMMITTER1",
@@ -233,7 +235,7 @@ describe("github", () => {
             const github = create();
 
             github.handle("issues", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
+            expect(redis.sadd).toBeCalledWith(participantsKey, [...data.participants], [...data.mentions]);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.smembers).not.toBeCalled();
         });
@@ -243,7 +245,7 @@ describe("github", () => {
             data.details = {};
 
             github.handle("issues", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
+            expect(redis.sadd).toBeCalledWith(participantsKey, [...data.participants], [...data.mentions]);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey]);
             expect(redis.smembers).toBeCalledWith(participantsKey);
@@ -257,7 +259,7 @@ describe("github", () => {
             data.action  = "opened";
 
             github.handle("issues", data);
-            expect(redis.sadd).toBeCalledWith(participantsKey, data.participants, data.mentions);
+            expect(redis.sadd).toBeCalledWith(participantsKey, [...data.participants], [...data.mentions]);
             expect(redis.expire).toBeCalledWith(participantsKey, jasmine.any(Number));
             expect(redis.sunion).toBeCalledWith([issueKey, repoKey]);
             expect(redis.smembers).toBeCalledWith(participantsKey);
