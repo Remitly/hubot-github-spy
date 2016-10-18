@@ -311,12 +311,13 @@ module.exports = class Github {
                     const user = isSlack
                         ? this._robot.adapter.client.rtm.dataStore.getUserById(userId)
                         : this._robot.brain.userForId(userId);
+                    const name = (user && user.name) ? user.name : userId;
 
                     if (userId !== results[1][1]) {
-                        this._robot.messageRoom(user.id, payload);
-                        log.push(`- Sent to ${user.name}`);
+                        this._robot.messageRoom(userId, payload);
+                        log.push(`- Sent to ${name}`);
                     } else {
-                        log.push(`- Skipped ${user.name}`);
+                        log.push(`- Skipped ${name}`);
                     }
                 });
 
