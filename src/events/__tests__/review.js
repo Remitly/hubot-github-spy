@@ -60,7 +60,7 @@ describe("pull request review", () => {
         }
     }
 
-    function verifyReview(state, title) {
+    function verifyReview(state, title, isComment) {
         data.review.state = state;
         const event = Events.create(type, data);
 
@@ -69,14 +69,15 @@ describe("pull request review", () => {
         expect(event.review).toBe(data.review);
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER", "REVIEWER"]));
         expect(event.mentions).toEqual(new Set(["REVIEW_MENTION"]));
+        expect(event.isComment).toBe(isComment);
 
         verifyDetails(event, title, data.review.body, "http://review");
     }
 
     it("handles all expected states", () => {
-        verifyReview(undefined, "Reviewed by SENDER");
-        verifyReview("commented", "Reviewed by SENDER");
-        verifyReview("changes_requested", "Changes requested by SENDER");
-        verifyReview("approved", "Approved by SENDER");
+        verifyReview(undefined, "Reviewed by SENDER", false);
+        verifyReview("commented", "Reviewed by SENDER", true);
+        verifyReview("changes_requested", "Changes requested by SENDER", false);
+        verifyReview("approved", "Approved by SENDER", false);
     });
 });

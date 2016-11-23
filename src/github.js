@@ -34,6 +34,7 @@ module.exports = class Github {
     constructor(robot, redis) {
         this._robot = robot;
         this._redis = redis;
+        this._reviewCommentIds = [];
     }
 
     // Logins
@@ -246,6 +247,16 @@ module.exports = class Github {
             return;
         }
 
+        // if this event has a comment and is for a pull request review, track it
+        if (event.comment && event.comment.pull_request_review_id) {
+            this._reviewCommentIds.push(event.comment.pull_request_review_id);
+
+            // but only track the last 100
+            if (this._reviewCommentIds.length > 100) {
+                this._reviewCommentIds.shift();
+            }
+        }
+
         // if we do have details, we need to get the right set of watchers
         const watchersKeys = [`issue:${event.id}`];
 
@@ -266,7 +277,25 @@ module.exports = class Github {
                     return;
                 }
 
-                this._notify(results[2][1], results[3][1], event);
+                // due to a github bug, we will sometimes receive a `pull_request_review` event
+                // for a comment without a subsequent `pull_request_review_comment`.  in the
+                // case that we receive both, we don't need to notify the user of both.  in the
+                // case that we don't, we should at least let them know something happened, even
+                // if we don't have the details.  we wait for one second to check whether or not
+                // we've received the comment itself before notifying about the review event.
+                const notify = () => this._notify(results[2][1], results[3][1], event);
+
+                if (event.review && event.isComment) {
+                    setTimeout(() => {
+                        // only notify of the review event if we didn't notify on
+                        // the paired comment event (because we didn't receive it).
+                        if (!this._reviewCommentIds.includes(event.review.id)) {
+                            notify();
+                        }
+                    }, 1000);
+                } else {
+                    notify();
+                }
             });
     }
 

@@ -14,6 +14,10 @@ module.exports = class ReviewEvent extends IssueEvent {
         return this.data.review;
     }
 
+    get isComment() {
+        return this.review.state === "commented";
+    }
+
     // BaseEvent
 
     buildId() {

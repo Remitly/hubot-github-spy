@@ -227,6 +227,9 @@ describe("github", () => {
             github.handle("pull_request", data);
             expect(Events.create).lastCalledWith("pull_request", data);
 
+            github.handle("pull_request_review", data);
+            expect(Events.create).lastCalledWith("pull_request_review", data);
+
             github.handle("pull_request_review_comment", data);
             expect(Events.create).lastCalledWith("pull_request_review_comment", data);
         });
@@ -281,17 +284,32 @@ describe("github", () => {
             expect(redis.exec).toBeCalled();
         });
 
-        function verifyNotify(adapterName, payload) {
+        function verifyNotify(adapterName, payload, type, delay = 0) {
             robot.adapterName = adapterName;
 
             const github = create();
-            github.handle("issues", data);
+            github.handle(type, data);
 
             const watchers     = ["ID_BAZ", "ID_FOO", "ID_BAR"];
             const participants = ["ABC", "XYZ", senderId];
 
             const fetchCb = redis.exec.mock.calls.pop()[0];
+            redis.exec.mockClear();
+
             fetchCb(null, [[], [], [null, watchers], [null, participants]]);
+
+            if (delay) {
+                expect(redis.exec).not.toHaveBeenCalled();
+
+                jest.runTimersToTime(0);
+                expect(redis.exec).not.toHaveBeenCalled();
+
+                jest.runTimersToTime(delay - 1);
+                expect(redis.exec).not.toHaveBeenCalled();
+
+                jest.runTimersToTime(1);
+                expect(redis.exec).toHaveBeenCalled();
+            }
 
             expect(redis.hmget).toBeCalledWith("logins", participants.map(p => p.toLowerCase()));
             expect(redis.hget).toBeCalledWith("logins", senderId.toLowerCase());
@@ -323,12 +341,64 @@ describe("github", () => {
             });
 
             it("via slack", () => {
-                verifyNotify("slack", { attachments: [data.details] });
+                verifyNotify("slack", { attachments: [data.details] }, "issues");
             });
 
             it("via non-slack", () => {
-                verifyNotify("FOO", data.details.fallback);
-                verifyNotify("BAR", data.details.fallback);
+                verifyNotify("FOO", data.details.fallback, "issues");
+                verifyNotify("BAR", data.details.fallback, "issues");
+            });
+
+            describe("pull_request_review", () => {
+                let originalData;
+
+                beforeEach(() => {
+                    jest.useFakeTimers();
+
+                    originalData = Object.assign({}, data);
+                    data.review = {
+                        id: 99,
+                    };
+                });
+
+                it("comments are delayed", () => {
+                    data.isComment = true;
+                    verifyNotify("FOO", data.details.fallback, "pull_request_review", 1000);
+                });
+
+                it("non-comments are not delayed", () => {
+                    verifyNotify("FOO", data.details.fallback, "pull_request_review");
+                });
+
+                it("comments are ignored with pull_request_review_comments", () => {
+                    data.isComment = true;
+                    robot.adapterName = "FOO";
+
+                    const github = create();
+                    github.handle("pull_request_review", data);
+
+                    {
+                        const fetchCb = redis.exec.mock.calls.pop()[0];
+                        redis.exec.mockClear();
+
+                        fetchCb(null, [[], [], [null, []], [null, []]]);
+                        expect(redis.exec).not.toHaveBeenCalled();
+                    }
+
+                    github.handle("pull_request_review_comment", Object.assign({}, originalData, { comment: { pull_request_review_id: data.review.id } }));
+
+                    {
+                        const fetchCb = redis.exec.mock.calls.pop()[0];
+                        redis.exec.mockClear();
+
+                        fetchCb(null, [[], [], [null, []], [null, []]]);
+                        expect(redis.exec).toHaveBeenCalled();
+                    }
+
+                    redis.exec.mockClear();
+                    jest.runTimersToTime(1000);
+                    expect(redis.exec).not.toHaveBeenCalled();
+                });
             });
         });
     });
