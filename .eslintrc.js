@@ -24,6 +24,7 @@ module.exports = {
                 "VariableDeclarator":   true,
             },
         }],
+        "no-restricted-syntax": "off",
         "no-underscore-dangle": "off",
         "no-use-before-define": ["error", {
             "functions": false,

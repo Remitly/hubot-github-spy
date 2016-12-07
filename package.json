@@ -1,45 +1,40 @@
 {
-  "name": "hubot-github-spy",
-  "version": "0.9.0",
-  "description": "A Hubot plugin for notifying users of relevant GitHub repo updates",
-  "homepage": "https://github.com/jaredru/hubot-github-spy",
-  "author": {
-    "name": "Jared Russell",
-    "url": "http://github.com/jaredru"
-  },
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/jaredru/hubot-github-spy.git"
-  },
-  "bugs": {
-    "url": "https://github.com/jaredru/hubot-github-spy/issues"
-  },
-  "main": "index.js",
-  "scripts": {
-    "test": "jest"
-  },
-  "jest": {
-    "testPathIgnorePatterns": [
-      "\\.eslintrc\\.js"
+    "name": "hubot-github-spy",
+    "version": "0.10.0",
+    "description": "A Hubot plugin for notifying users of relevant GitHub repo updates",
+    "homepage": "https://github.com/jaredru/hubot-github-spy",
+    "author": {
+        "name": "Jared Russell",
+        "url": "http://github.com/jaredru"
+    },
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jaredru/hubot-github-spy.git"
+    },
+    "bugs": {
+        "url": "https://github.com/jaredru/hubot-github-spy/issues"
+    },
+    "main": "index.js",
+    "scripts": {
+        "test": "jest"
+    },
+    "dependencies": {
+        "ioredis": "^3.1.4"
+    },
+    "devDependencies": {
+        "eslint": "^4.4.1",
+        "eslint-config-airbnb": "^15.1.0",
+        "eslint-plugin-import": "^2.7.0",
+        "eslint-plugin-jsx-a11y": "^5.1.1",
+        "eslint-plugin-react": "^7.1.0",
+        "jest": "^20.0.4"
+    },
+    "engines": {
+        "node": ">=6.8.0"
+    },
+    "keywords": [
+        "hubot",
+        "github"
     ]
-  },
-  "dependencies": {
-    "ioredis": "^2.4.0"
-  },
-  "devDependencies": {
-    "eslint": "^3.7.1",
-    "eslint-config-airbnb": "^12.0.0",
-    "eslint-plugin-import": "^1.16.0",
-    "eslint-plugin-jsx-a11y": "^2.2.3",
-    "eslint-plugin-react": "^6.4.1",
-    "jest-cli": "^16.0.1"
-  },
-  "engines": {
-    "node": "6.8.x"
-  },
-  "keywords": [
-    "hubot",
-    "github"
-  ]
 }

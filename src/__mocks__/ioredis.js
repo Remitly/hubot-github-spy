@@ -1,9 +1,7 @@
 
-"use strict";
-
 const Redis = jest.fn();
 Redis.prototype = {
-    defineCommand: jest.fn(function(name) {
+    defineCommand: jest.fn(function defineCommand(name) {
         this[name] = jest.fn();
     }),
 
