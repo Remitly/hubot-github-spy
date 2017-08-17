@@ -266,6 +266,11 @@ module.exports = class Github {
             watchersKeys.push(`repo:${event.repoId}`);
         }
 
+        if (event.reviewer) {
+            this._notify([], [event.reviewer], event);
+            return;
+        }
+
         // finally we'll get all the participants and execute
         command
             .sunion(watchersKeys)

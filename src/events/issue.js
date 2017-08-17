@@ -33,6 +33,9 @@ module.exports = class IssueEvent extends BaseEvent {
         case "reopened":
             this._reopened();
             break;
+        case "review_requested":
+            this._reviewRequested();
+            break;
         case "synchronize":
             this._synchronized();
             break;
@@ -78,6 +81,15 @@ module.exports = class IssueEvent extends BaseEvent {
     _reopened() {
         this.setDetails({
             title: `Reopened by ${this.sender}`,
+        });
+    }
+
+    _reviewRequested() {
+        this.reviewer = this.data.requested_reviewer.login;
+        this.participants.add(this.reviewer);
+
+        this.setDetails({
+            title: `Review requested by ${this.sender}`,
         });
     }
 

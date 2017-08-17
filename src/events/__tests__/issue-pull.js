@@ -54,6 +54,7 @@ function defineTests(type, pretext) {
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
         expect(event.mentions).toEqual(new Set(["TITLE_MENTION", "BODY_MENTION1", "BODY_MENTION2"]));
@@ -66,6 +67,7 @@ function defineTests(type, pretext) {
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
         expect(event.mentions).toEqual(new Set([]));
@@ -82,6 +84,7 @@ function defineTests(type, pretext) {
         const event = Events.create(type, data);
 
         expect(event.assignee).toEqual("ASSIGNEE");
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER", "ASSIGNEE"]));
         expect(event.mentions).toEqual(new Set([]));
@@ -98,6 +101,7 @@ function defineTests(type, pretext) {
         const event = Events.create(type, data);
 
         expect(event.assignee).toEqual("ASSIGNEE");
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER", "ASSIGNEE"]));
         expect(event.mentions).toEqual(new Set([]));
@@ -110,6 +114,7 @@ function defineTests(type, pretext) {
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
         expect(event.mentions).toEqual(new Set([]));
@@ -144,6 +149,7 @@ describe("pull requests", () => {
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
         expect(event.mentions).toEqual(new Set([]));
@@ -157,10 +163,28 @@ describe("pull requests", () => {
         const event = Events.create(type, data);
 
         expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBeUndefined();
         expect(event.comment).toBeUndefined();
         expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER"]));
         expect(event.mentions).toEqual(new Set([]));
 
         verifyDetails(event, pretext, "Merged by SENDER");
+    });
+
+    it("handles 'review_requsted'", () => {
+        data.requested_reviewer = {
+            login: "REVIEWER",
+        };
+
+        data.action = "review_requested";
+        const event = Events.create(type, data);
+
+        expect(event.assignee).toBeUndefined();
+        expect(event.reviewer).toBe("REVIEWER");
+        expect(event.comment).toBeUndefined();
+        expect(event.participants).toEqual(new Set(["OWNER", "SENDER", "USER", "REVIEWER"]));
+        expect(event.mentions).toEqual(new Set([]));
+
+        verifyDetails(event, pretext, "Review requested by SENDER");
     });
 });
