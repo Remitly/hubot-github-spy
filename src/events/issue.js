@@ -85,12 +85,14 @@ module.exports = class IssueEvent extends BaseEvent {
     }
 
     _reviewRequested() {
-        this.reviewer = this.data.requested_reviewer.login;
-        this.participants.add(this.reviewer);
+        if (this.data.requested_reviewer) {
+            this.reviewer = this.data.requested_reviewer.login;
+            this.participants.add(this.reviewer);
 
-        this.setDetails({
-            title: `Review requested by ${this.sender}`,
-        });
+            this.setDetails({
+                title: `Review requested by ${this.sender}`,
+            });
+        }
     }
 
     _synchronized() {
