@@ -165,6 +165,19 @@ describe("github", () => {
 
         describe("issues", () => {
             defineTests("issue");
+
+            it("removes issue participants", () => {
+                const github = create();
+                github.removeWatcherForIssue(user, "foo/bar#123");
+
+                expect(redis.hget).toBeCalledWith("users", userId, jasmine.any(Function));
+
+                const cb = redis.hget.mock.calls[0][2];
+                const alias = "ALIAS";
+
+                cb(null, alias);
+                expect(redis.srem).toHaveBeenLastCalledWith("participants:foo/bar#123", alias);
+            });
         });
     });
 

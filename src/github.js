@@ -142,6 +142,10 @@ module.exports = class Github {
         return `user:${user.id}:${type}`;
     }
 
+    _participantsKey(name) {
+        return `participants:${name}`;
+    }
+
     _addWatcher(type, user, name) {
         const canonicalName = name.toLowerCase();
         const typeKey = this._typeKey(type, canonicalName);
@@ -163,6 +167,18 @@ module.exports = class Github {
         const canonicalName = name.toLowerCase();
         const typeKey = this._typeKey(type, canonicalName);
         const userKey = this._userKey(type, user);
+
+        // if the type is an issue, also remove the user as a participant
+        if (type === "issue") {
+            this.loginForUser(user, (login) => {
+                if (!login) {
+                    return;
+                }
+
+                const participantsKey = this._participantsKey(canonicalName);
+                this._redis.srem(participantsKey, login);
+            });
+        }
 
         return this._redis
             .multi()
