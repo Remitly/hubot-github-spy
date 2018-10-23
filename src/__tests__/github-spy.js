@@ -246,6 +246,14 @@ describe("hubot github spy", () => {
 
             expect(regex.exec("watch foo/bar")[1]).toEqual("foo/bar");
             expect(regex.exec("watch foo/bar ")[1]).toEqual("foo/bar");
+
+            expect(regex.exec("watch fo-o/bar")).toBeTruthy();
+            expect(regex.exec("watch foo/b-ar")).toBeTruthy();
+            expect(regex.exec("watch fo-o/b-ar")[1]).toEqual("fo-o/b-ar");
+
+            expect(regex.exec("watch fo.o/bar")).toBeTruthy();
+            expect(regex.exec("watch foo/b.ar")).toBeTruthy();
+            expect(regex.exec("watch fo.o/b.ar")[1]).toEqual("fo.o/b.ar");
         });
 
         it("sets watch repo", () => {
@@ -305,6 +313,14 @@ describe("hubot github spy", () => {
 
             expect(regex.exec("unwatch foo/bar")[1]).toEqual("foo/bar");
             expect(regex.exec("unwatch foo/bar ")[1]).toEqual("foo/bar");
+
+            expect(regex.exec("unwatch fo-o/bar")).toBeTruthy();
+            expect(regex.exec("unwatch foo/b-ar")).toBeTruthy();
+            expect(regex.exec("unwatch fo-o/b-ar")[1]).toEqual("fo-o/b-ar");
+
+            expect(regex.exec("unwatch fo.o/bar")).toBeTruthy();
+            expect(regex.exec("unwatch foo/b.ar")).toBeTruthy();
+            expect(regex.exec("unwatch fo.o/b.ar")[1]).toEqual("fo.o/b.ar");
         });
 
         it("removes watch repo", () => {
@@ -360,6 +376,14 @@ describe("hubot github spy", () => {
 
             expect(regex.exec("watch foo/bar#37")[1]).toEqual("foo/bar#37");
             expect(regex.exec("watch foo/bar#37 ")[1]).toEqual("foo/bar#37");
+
+            expect(regex.exec("watch fo-o/bar#37")).toBeTruthy();
+            expect(regex.exec("watch foo/b-ar#37")).toBeTruthy();
+            expect(regex.exec("watch fo-o/b-ar#37")[1]).toEqual("fo-o/b-ar#37");
+
+            expect(regex.exec("watch fo.o/bar#37")).toBeTruthy();
+            expect(regex.exec("watch foo/b.ar#37")).toBeTruthy();
+            expect(regex.exec("watch fo.o/b.ar#37")[1]).toEqual("fo.o/b.ar#37");
         });
 
         it("sets watch issue", () => {
@@ -437,6 +461,14 @@ describe("hubot github spy", () => {
 
             expect(regex.exec("unwatch foo/bar#37")[1]).toEqual("foo/bar#37");
             expect(regex.exec("unwatch foo/bar#37 ")[1]).toEqual("foo/bar#37");
+
+            expect(regex.exec("unwatch fo-o/bar#37")).toBeTruthy();
+            expect(regex.exec("unwatch foo/b-ar#37")).toBeTruthy();
+            expect(regex.exec("unwatch fo-o/b-ar#37")[1]).toEqual("fo-o/b-ar#37");
+
+            expect(regex.exec("unwatch fo.o/bar#37")).toBeTruthy();
+            expect(regex.exec("unwatch foo/b.ar#37")).toBeTruthy();
+            expect(regex.exec("unwatch fo.o/b.ar#37")[1]).toEqual("fo.o/b.ar#37");
         });
 
         it("removes watch issue", () => {

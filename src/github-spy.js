@@ -65,7 +65,7 @@ module.exports = function init(robot) {
 
     // Repos
 
-    robot.respond(/watch ([\w-]+\/[\w-]+)\s*$/i, (res) => {
+    robot.respond(/watch ([\w-.]+\/[\w-.]+)\s*$/i, (res) => {
         const user = res.message.user;
         const repo = res.match[1];
 
@@ -78,7 +78,7 @@ module.exports = function init(robot) {
         listReposForUser(user);
     });
 
-    robot.respond(/unwatch ([\w-]+\/[\w-]+)\s*$/i, (res) => {
+    robot.respond(/unwatch ([\w-.]+\/[\w-.]+)\s*$/i, (res) => {
         const user = res.message.user;
         const repo = res.match[1];
 
@@ -91,7 +91,7 @@ module.exports = function init(robot) {
 
     // Issues/PRs
 
-    robot.respond(/watch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) => {
+    robot.respond(/watch ([\w-.]+\/[\w-.]+#\d+)\s*$/i, (res) => {
         const user  = res.message.user;
         const issue = res.match[1];
 
@@ -104,7 +104,7 @@ module.exports = function init(robot) {
         listIssuesForUser(user);
     });
 
-    robot.respond(/unwatch ([\w-]+\/[\w-]+#\d+)\s*$/i, (res) => {
+    robot.respond(/unwatch ([\w-.]+\/[\w-.]+#\d+)\s*$/i, (res) => {
         const user  = res.message.user;
         const issue = res.match[1];
 
