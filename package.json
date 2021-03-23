@@ -20,7 +20,7 @@
         "test": "jest"
     },
     "dependencies": {
-        "ioredis": "^3.1.4"
+        "ioredis": "^4.24.3"
     },
     "devDependencies": {
         "eslint": "^4.4.1",
