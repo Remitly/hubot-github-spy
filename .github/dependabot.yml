@@ -1,0 +1,38 @@
+version: 2
+registries:
+  npm-registry-npm-int-remitly-com:
+    type: npm-registry
+    url: https://npm.int.remitly.com
+    token: "${{secrets.NPM_REGISTRY_NPM_INT_REMITLY_COM_TOKEN}}"
+
+updates:
+- package-ecosystem: npm
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "15:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: ioredis
+    versions:
+    - 4.19.4
+    - 4.22.0
+    - 4.23.0
+    - 4.24.2
+    - 4.24.3
+    - 4.24.4
+    - 4.25.0
+    - 4.26.0
+  - dependency-name: eslint-plugin-react
+    versions:
+    - 7.22.0
+    - 7.23.0
+    - 7.23.1
+  - dependency-name: lodash
+    versions:
+    - 4.17.20
+  - dependency-name: handlebars
+    versions:
+    - 4.7.6
+  registries:
+  - npm-registry-npm-int-remitly-com
